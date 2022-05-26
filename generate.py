@@ -83,15 +83,17 @@ class GraphGenerator(Analyzer):
             return
         self.start_with_config(analysis_dict)
         
-    def start_with_config(self,analysis_dict:dict,doExport=True,doTest=False):
+    def start_with_config(self,analysis_dict:dict,doExport=True,doTest=False,excludeExLib=False):
         analysis = Analysis()
         configAnalysis(analysis,analysis_dict)
         analysis.start_timer()
         self.start_scanning(analysis)
-        
+
+        if excludeExLib: analysis.clear_external()
         if doExport : analysis.export()
-        if doTest:
-            self.exportGraph(analysis)
+        if doTest: self.exportGraph(analysis)
+        
+
         analysis.stop_timer()
         analysis.statistics.add(key=Statistics.Key.ANALYSIS_RUNTIME, value=analysis.duration())
         self._clear_all_parsers()
@@ -126,19 +128,14 @@ class GraphGenerator(Analyzer):
         # analysis.export()
         LOGGER.info_done(f'total runtime of analysis: {analysis.total_runtime}')
     def exportGraph(self,analysis: Analysis):
-        # fdg=analysis.graph_representations["FILE_RESULT_DEPENDENCY_GRAPH".lower()].digraph
-        # print( fdg.edges())
-        # nodes=[n for n in fdg.nodes().keys()]
-        # for node in nodes:
-        #     if not 'absolute_name' in fdg.nodes()[node]:
-        #         fdg.remove_node(node)
-        # print( fdg.edges())
-        file_results = {k: v for (k, v) in analysis.results.items() if isinstance(v, AbstractFileResult)}
-        for k in file_results.keys():
-            print("---------------------------------"+k+"---------------------------------")
-            print(file_results[k])
-            print(file_results[k])
-            print("\n\n")
+        edg=analysis.graph_representations["ENTITY_RESULT_DEPENDENCY_GRAPH".lower()].digraph
+        print(edg.edges())
+        nodes=[n for n in edg.nodes().keys()]
+        for node in nodes:
+            if not 'absolute_name' in edg.nodes()[node]:
+                edg.remove_node(node)
+        print( edg.edges())
+
 
 
 def configAnalysis(analysis: Analysis,analysis_dict:dict):
@@ -338,8 +335,8 @@ if __name__ == '__main__':
     analysis_dict={
         "project_name": "j-example-project",
         "analysis_name": "check_j_files",
-        # "source_directory": r"D:\idea_workspace\ACPG4J",
-        "source_directory": r"D:\idea_workspace\joern-javaTools",
+        "source_directory": r"D:\idea_workspace\ACPG4J",
+        # "source_directory": r"D:\idea_workspace\joern-javaTools",
         # "only_permit_languages":['java'],
         "only_permit_file_extensions":['.java'],
         "ignore_dependencies_containing":[],        
@@ -349,27 +346,28 @@ if __name__ == '__main__':
             "dependency_graph",
             "louvain_modularity",
             "fan_in_out",
-            "tfidf"],
-        # "entity_scan":[
-        #     "number_of_methods",
-        #     "source_lines_of_code",
-        #     "dependency_graph",#(or dependency_graph/inheritance_graph/complete_graph)
-        #     "inheritance_graph",
-        #     "complete_graph",
-        #     "louvain_modularity",
-        #     "fan_in_out",
-        #     "tfidf"
-        # ],
+            "tfidf"
+        ],
+        "entity_scan":[
+            "number_of_methods",
+            "source_lines_of_code",
+            "dependency_graph",#(or dependency_graph/inheritance_graph/complete_graph)
+            "inheritance_graph",
+            "complete_graph",
+            "louvain_modularity",
+            "fan_in_out",
+            "tfidf"
+        ],
         "export":{
-            "directory": r"D:\python-workspace\emerge\out",
+            "directory": r"D:\python-workspace\SoftwareNetGen\out",
             "graphml":"",
             "dot":"",
             "d3":""
             # (and/or json/tabular_file/tabular_console_overall)
         }
     }
-    # graphGenerator.start_with_config(analysis_dict,True,False)
-    graphGenerator.start_with_config(analysis_dict,False,True)
+    graphGenerator.start_with_config(analysis_dict,True,False,True)
+    # graphGenerator.start_with_config(analysis_dict,False,True)
     # from calculate.graphCalculator import GraphCalculator,read_graphml
     # path="D:\python-workspace\emerge\out\emerge-file_result_dependency_graph.graphml"
     # graph=read_graphml(path)

@@ -5,6 +5,7 @@ Defines a graph representations, available graph types and relevant calculations
 # Authors: Grzegorz Lato <grzegorz.lato@gmail.com>
 # License: MIT
 
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from enum import Enum, unique, auto
 
@@ -16,6 +17,7 @@ from networkx import DiGraph
 
 from emerge.abstractresult import AbstractFileResult, AbstractEntityResult
 from emerge.log import Logger
+from emerge.results import FileResult
 
 LOGGER = Logger(logging.getLogger('graph'))
 coloredlogs.install(level='E', logger=LOGGER.logger(), fmt=Logger.log_format)
@@ -72,6 +74,24 @@ class GraphRepresentation:
             absolute_name = result.absolute_name
             display_name = result.display_name
 
+            self._digraph.add_node(node_name, absolute_name=absolute_name, display_name=display_name)
+            dependencies = result.scanned_import_dependencies
+            for dependency in dependencies:
+                self._digraph.add_node(dependency, display_name=dependency)
+                self._digraph.add_edge(node_name, dependency)
+    def calculate_dependency_graph_from_results_file_merged(self, results: Dict[str, Any]) -> None:
+        """Constructs a dependency graph from a list of abstract file results.
+            这里合并一下文件节点和模块节点
+        Args:
+            results (List[AbstractFileResult]): A list of objects that subclass AbstractFileResult.
+        """
+        LOGGER.debug('creating dependency graph...')
+        result:FileResult
+        for _, result in results.items():
+            # node_name = result.unique_name
+            absolute_name = result.absolute_name
+            display_name = result.display_name
+            node_name=result.module_name+"."+Path(display_name).stem
             self._digraph.add_node(node_name, absolute_name=absolute_name, display_name=display_name)
             dependencies = result.scanned_import_dependencies
             for dependency in dependencies:

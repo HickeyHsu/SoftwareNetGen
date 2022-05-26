@@ -220,7 +220,14 @@ class Analysis:
         metric_runtime = stop_metric_calculcation - start_metric_calculation
 
         self.statistics.add(key=Statistics.Key.RUNTIME, value=metric_runtime, prefix=metric.metric_name)
-
+    def clear_external(self):
+        #去除外部调用的依赖库
+        for name, representation in self.graph_representations.items():
+            if name == GraphType.FILE_RESULT_DEPENDENCY_GRAPH.name.lower() or  GraphType.ENTITY_RESULT_DEPENDENCY_GRAPH.name.lower():
+                nodes=[n for n in representation.digraph.nodes().keys()]
+                for node in nodes:
+                    if not 'absolute_name' in representation.digraph.nodes()[node]:
+                        representation.digraph.remove_node(node)
     def export(self) -> None:
         """Triggers all exports that are configured within this analysis. Collects statistics, metric results and exports them to the configured outputs.
         """
@@ -518,7 +525,8 @@ class Analysis:
         for name, representation in simple_graph_representations.items():
 
             if name == GraphType.FILE_RESULT_DEPENDENCY_GRAPH.name.lower():
-                representation.calculate_dependency_graph_from_results(file_results)
+                # representation.calculate_dependency_graph_from_results(file_results)
+                representation.calculate_dependency_graph_from_results_file_merged(file_results)
 
             if name == GraphType.ENTITY_RESULT_DEPENDENCY_GRAPH.name.lower():
                 representation.calculate_dependency_graph_from_results(entity_results)
