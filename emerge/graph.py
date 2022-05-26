@@ -16,8 +16,9 @@ import networkx as nx
 from networkx import DiGraph
 
 from emerge.abstractresult import AbstractFileResult, AbstractEntityResult
+from emerge.languages.abstractparser import CoreParsingKeyword
 from emerge.log import Logger
-from emerge.results import FileResult
+from emerge.results import EntityResult, FileResult
 
 LOGGER = Logger(logging.getLogger('graph'))
 coloredlogs.install(level='E', logger=LOGGER.logger(), fmt=Logger.log_format)
@@ -106,11 +107,17 @@ class GraphRepresentation:
         """
         LOGGER.debug('creating inheritance graph...')
         for _, result in results.items():
+            result:EntityResult
             node_name = result.unique_name
-
+            
             self._digraph.add_node(node_name)
             inheritance_dependencies = result.scanned_inheritance_dependencies
+            inheritance_dependency:str
             for inheritance_dependency in inheritance_dependencies:
+                if (CoreParsingKeyword.DOT.value not in inheritance_dependency):
+                    match_denp=match_denpendency(CoreParsingKeyword.DOT.value+inheritance_dependency,results.keys())
+                    if match_denp is not None:
+                        inheritance_dependency=match_denp
                 self._digraph.add_node(inheritance_dependency)
                 self._digraph.add_edge(node_name, inheritance_dependency)
 
@@ -210,3 +217,9 @@ class FileSystemNode:
 
     def __str__(self):
         return self.absolute_name
+
+def match_denpendency(stem:str,all:list[str])->str:
+    for name in all:
+        if stem in name:
+            return name
+    return None

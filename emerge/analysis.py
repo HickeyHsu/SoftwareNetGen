@@ -224,10 +224,20 @@ class Analysis:
         #去除外部调用的依赖库
         for name, representation in self.graph_representations.items():
             if name == GraphType.FILE_RESULT_DEPENDENCY_GRAPH.name.lower() or  GraphType.ENTITY_RESULT_DEPENDENCY_GRAPH.name.lower():
-                nodes=[n for n in representation.digraph.nodes().keys()]
-                for node in nodes:
-                    if not 'absolute_name' in representation.digraph.nodes()[node]:
-                        representation.digraph.remove_node(node)
+                if representation.digraph:
+                    nodes=[n for n in representation.digraph.nodes().keys()]
+                    for node in nodes:
+                        if not 'absolute_name' in representation.digraph.nodes()[node]:
+                            representation.digraph.remove_node(node)
+
+    def merge_file_inheritance(self):
+        if GraphType.ENTITY_RESULT_INHERITANCE_GRAPH.name.lower() in self.graph_representations:
+            EIG=self.graph_representations[GraphType.ENTITY_RESULT_INHERITANCE_GRAPH.name.lower()].digraph
+            FDG=self.graph_representations[GraphType.FILE_RESULT_DEPENDENCY_GRAPH.name.lower()].digraph
+            for node_eig in EIG.nodes():
+                if node_eig in FDG.nodes():
+                    FDG.add_edges_from(EIG.edges(EIG.nodes()[node_eig]))
+        
     def export(self) -> None:
         """Triggers all exports that are configured within this analysis. Collects statistics, metric results and exports them to the configured outputs.
         """

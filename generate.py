@@ -83,15 +83,16 @@ class GraphGenerator(Analyzer):
             return
         self.start_with_config(analysis_dict)
         
-    def start_with_config(self,analysis_dict:dict,doExport=True,doTest=False,excludeExLib=False):
+    def start_with_config(self,analysis_dict:dict,doExport=True,file_inheritance=False,excludeExLib=False):
         analysis = Analysis()
         configAnalysis(analysis,analysis_dict)
         analysis.start_timer()
         self.start_scanning(analysis)
 
         if excludeExLib: analysis.clear_external()
+        if file_inheritance: analysis.merge_file_inheritance()
         if doExport : analysis.export()
-        if doTest: self.exportGraph(analysis)
+        
         
 
         analysis.stop_timer()
@@ -127,14 +128,7 @@ class GraphGenerator(Analyzer):
         analysis.statistics.add(key=Statistics.Key.TOTAL_RUNTIME, value=analysis.total_runtime)
         # analysis.export()
         LOGGER.info_done(f'total runtime of analysis: {analysis.total_runtime}')
-    def exportGraph(self,analysis: Analysis):
-        edg=analysis.graph_representations["ENTITY_RESULT_DEPENDENCY_GRAPH".lower()].digraph
-        print(edg.edges())
-        nodes=[n for n in edg.nodes().keys()]
-        for node in nodes:
-            if not 'absolute_name' in edg.nodes()[node]:
-                edg.remove_node(node)
-        print( edg.edges())
+
 
 
 
@@ -348,16 +342,16 @@ if __name__ == '__main__':
             "fan_in_out",
             "tfidf"
         ],
-        # "entity_scan":[
-        #     "number_of_methods",
-        #     "source_lines_of_code",
-        #     "dependency_graph",#(or dependency_graph/inheritance_graph/complete_graph)
-        #     "inheritance_graph",
-        #     "complete_graph",
-        #     "louvain_modularity",
-        #     "fan_in_out",
-        #     "tfidf"
-        # ],
+        "entity_scan":[
+            "number_of_methods",
+            "source_lines_of_code",
+            "dependency_graph",#(or dependency_graph/inheritance_graph/complete_graph)
+            "inheritance_graph",
+            "complete_graph",
+            "louvain_modularity",
+            "fan_in_out",
+            "tfidf"
+        ],
         "export":{
             "directory": r"D:\python-workspace\SoftwareNetGen\out",
             "graphml":"",
@@ -366,7 +360,7 @@ if __name__ == '__main__':
             # (and/or json/tabular_file/tabular_console_overall)
         }
     }
-    graphGenerator.start_with_config(analysis_dict,True,False,True)
+    graphGenerator.start_with_config(analysis_dict,True,True,False)
     # graphGenerator.start_with_config(analysis_dict,False,True)
     # from calculate.graphCalculator import GraphCalculator,read_graphml
     # path="D:\python-workspace\emerge\out\emerge-file_result_dependency_graph.graphml"
