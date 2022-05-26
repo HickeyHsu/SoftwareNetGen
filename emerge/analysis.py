@@ -234,9 +234,12 @@ class Analysis:
         if GraphType.ENTITY_RESULT_INHERITANCE_GRAPH.name.lower() in self.graph_representations:
             EIG=self.graph_representations[GraphType.ENTITY_RESULT_INHERITANCE_GRAPH.name.lower()].digraph
             FDG=self.graph_representations[GraphType.FILE_RESULT_DEPENDENCY_GRAPH.name.lower()].digraph
-            for node_eig in EIG.nodes():
-                if node_eig in FDG.nodes():
-                    FDG.add_edges_from(EIG.edges(EIG.nodes()[node_eig]))
+            for edge in EIG.edges():
+                if (edge[0] in FDG.nodes()) and (edge[1] in FDG.nodes()):
+                    FDG.add_edges_from([edge])
+            # for node_eig in EIG.nodes():
+            #     if node_eig in FDG.nodes():
+            #         FDG.add_edges_from(EIG.edges(EIG.nodes()[node_eig]))
         
     def export(self) -> None:
         """Triggers all exports that are configured within this analysis. Collects statistics, metric results and exports them to the configured outputs.
