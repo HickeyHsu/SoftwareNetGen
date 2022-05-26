@@ -127,8 +127,8 @@ class JavaParser(AbstractParser, ParsingMixin):
 
             entity_results: List[EntityResult]
             for entity_result in entity_results:
-                self._add_inheritance_to_entity_result(entity_result)
                 self._add_imports_to_entity_result(entity_result)
+                self._add_inheritance_to_entity_result(entity_result)                
                 self.create_unique_entity_name(entity_result)
                 self._results[entity_result.unique_name] = entity_result
 
@@ -222,11 +222,15 @@ class JavaParser(AbstractParser, ParsingMixin):
                 if len(parsing_result) > 0:
                     parsing_result = expression_to_match.parseString(read_ahead_string)
                     if getattr(parsing_result, CoreParsingKeyword.INHERITED_ENTITY_NAME.value) is not None and bool(getattr(parsing_result, CoreParsingKeyword.INHERITED_ENTITY_NAME.value)):
-
                         result.analysis.statistics.increment(Statistics.Key.PARSING_HITS)
                         LOGGER.debug(
                             f'found inheritance entity {getattr(parsing_result, CoreParsingKeyword.INHERITED_ENTITY_NAME.value)} for entity name: {getattr(parsing_result, CoreParsingKeyword.ENTITY_NAME.value)} and added to result')
-                        result.scanned_inheritance_dependencies.append(getattr(parsing_result, CoreParsingKeyword.INHERITED_ENTITY_NAME.value))
+                        # 尝试匹配导入的包
+                        match_import = [v for v in result.scanned_import_dependencies if getattr(parsing_result, CoreParsingKeyword.INHERITED_ENTITY_NAME.value) in v]
+                        if len(match_import)>0:    
+                            result.scanned_inheritance_dependencies.append(match_import[0])
+                        else:
+                            result.scanned_inheritance_dependencies.append(getattr(parsing_result, CoreParsingKeyword.INHERITED_ENTITY_NAME.value))
 
 
 if __name__ == "__main__":

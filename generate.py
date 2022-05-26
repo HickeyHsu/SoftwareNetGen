@@ -348,20 +348,20 @@ if __name__ == '__main__':
             "fan_in_out",
             "tfidf"
         ],
-        "entity_scan":[
-            "number_of_methods",
-            "source_lines_of_code",
-            "dependency_graph",#(or dependency_graph/inheritance_graph/complete_graph)
-            "inheritance_graph",
-            "complete_graph",
-            "louvain_modularity",
-            "fan_in_out",
-            "tfidf"
-        ],
+        # "entity_scan":[
+        #     "number_of_methods",
+        #     "source_lines_of_code",
+        #     "dependency_graph",#(or dependency_graph/inheritance_graph/complete_graph)
+        #     "inheritance_graph",
+        #     "complete_graph",
+        #     "louvain_modularity",
+        #     "fan_in_out",
+        #     "tfidf"
+        # ],
         "export":{
             "directory": r"D:\python-workspace\SoftwareNetGen\out",
             "graphml":"",
-            "dot":"",
+            # "dot":"",
             "d3":""
             # (and/or json/tabular_file/tabular_console_overall)
         }
