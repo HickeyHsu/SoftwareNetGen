@@ -8,7 +8,7 @@ numpy
 prettytable
 py
 pycodestyle
-pygraphviz
+# pygraphviz
 pylint
 pyparsing
 python-louvain
