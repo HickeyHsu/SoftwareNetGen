@@ -1,3 +1,81 @@
+# SoftwareNetGen
+本项目基于glato/emerge项目进行二次开发，主要目标是实现面向缺陷预测的软件网络模型和特征提取。
+
+## some thing
+原项目emerge只在linux和mac上进行验证。
+在Windows系统部署时，需要为项目中的posixPath添加支持。方法如下：
+修改所使用环境下的`lib/pathlib.py`代码（约1000行）
+```
+#修改前
+def __new__(cls, *args, **kwargs):
+        if cls is Path:
+            cls = WindowsPath if os.name == 'nt' else PosixPath
+        self = cls._from_parts(args, init=False)
+        if not self._flavour.is_supported:
+            raise NotImplementedError("cannot instantiate %r on your system"
+                                      % (cls.__name__,))
+        self._init()
+        return self
+```
+```
+#修改后    
+def __new__(cls, *args, **kwargs):
+        if cls is Path:
+            # cls = WindowsPath if os.name == 'nt' else PosixPath
+            cls = WindowsPath
+        self = cls._from_parts(args, init=False)
+        # Windows doesn't support PosixPath
+        if type(self) == PosixPath:
+            cls = WindowsPath
+            self = cls._from_parts(args, init=False)
+        if not self._flavour.is_supported:
+            raise NotImplementedError("cannot instantiate %r on your system"
+                                      % (cls.__name__,))
+        self._init()
+        return self
+```
+
+## 配置运行
+调用generate.py中的GraphGenerator
+必须要设置的参数包括：
+"source_directory"：目标项目目录
+"only_permit_file_extensions"：目标文件后缀
+
+全部设置项：
+```
+DEFAULT_CONFIG={
+    "project_name": "example-project",
+    "analysis_name": "check_files",
+    "source_directory": None,
+    # "only_permit_languages":['java'],
+    "only_permit_file_extensions":[],
+    "ignore_dependencies_containing":[],        
+    "file_scan":[
+        "number_of_methods",#方法数量
+        "source_lines_of_code",
+        "dependency_graph",
+        "louvain_modularity",
+        "fan_in_out",
+        "tfidf"],
+    "entity_scan":[
+        "number_of_methods",#方法数量
+        "source_lines_of_code",
+        "dependency_graph",#(or dependency_graph/inheritance_graph/complete_graph)必须按 dependency_graph/inheritance_graph/complete_graph 这个前提（即生成inheritance_graph必须先生成dependency_graph；生成complete_graph必须先有inheritance_graph和dependency_graph）
+        "louvain_modularity",
+        "fan_in_out",
+        "tfidf"
+    ],
+    "export":{
+        "directory": None,
+        "graphml":"",
+        "dot":"",
+        "d3":""
+        # (and/or json/tabular_file/tabular_console_overall)
+    }
+} 
+```
+
+
 # Emerge
 
 ![GitHub license](https://img.shields.io/github/license/glato/emerge)
