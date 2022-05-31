@@ -63,6 +63,7 @@ class ConfigValProject(EnumKeyValid, Enum):
 @unique
 class ConfigKeyAnalysis(EnumKeyValid, Enum):
     """Config key checks of the analysis level."""
+    PROJECT_NAME = auto()
     ANALYSIS_NAME = auto()
     SOURCE_DIRECTORY = auto()
     ONLY_PERMIT_LANGUAGES = auto()
@@ -556,6 +557,7 @@ class Configuration:
                 analysis.scan_types.append(ConfigKeyAnalysis.ENTITY_SCAN.name.lower())
 
             analysis.analysis_name = analysis_dict[ConfigKeyAnalysis.ANALYSIS_NAME.name.lower()]
+            analysis.project_name = analysis_dict[ConfigKeyAnalysis.PROJECT_NAME.name.lower()]
             analysis.source_directory = analysis_dict[ConfigKeyAnalysis.SOURCE_DIRECTORY.name.lower()]
 
             # TODO: check for other optional keys/values and assign

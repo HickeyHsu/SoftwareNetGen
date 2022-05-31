@@ -1,3 +1,5 @@
+
+import sys,getopt
 from datetime import datetime
 from typing import Dict
 
@@ -64,12 +66,118 @@ DEFAULT_CONFIG={
         # (and/or json/tabular_file/tabular_console_overall)
     }
 } 
+SUPPORT_LANG={
+    "java":".java",
+    "c":".c",
+    "cpp":".cpp",
+    "python":".py",
+    "javascript":".js",
+    "kotlin":".kt,.kts",
+}
 class GraphGenerator(Analyzer):
+    
     def __init__(self,parsers=PARSERS):
         self._config=Configuration("test")
         self._parsers = parsers
         self._results = {}
+        self.source_directory: str=""
+        self.language:str=""
+        self.output_directory="out"
+        self.export_format:str=None
+        self.project_name=None
+        self.analysis_name="check_files"
+        self.ignore_dependencies_containing:str=None
+        self.file_scan=False
+        self.entity_scan=False
+        self.file_inheritance=False
+        self.excludeExLib=False
+    def main(self,argv):
+        opts,args=getopt.getopt(argv,"s:o:l:p:a:",
+            ["entity_scan","file_scan","file_inheritance","excludeExLib","format=","ignore_dependencies_containing="])
+        for opts,arg in opts:
+            if opts=="-s":
+                self.source_directory = arg
+            if opts=="-o":
+                self.output_directory = arg
+            if opts=="-l":
+                self.language = arg
+            if opts=="-p":
+                self.project_name = arg
+            if opts=="-a":
+                self.analysis_name = arg
+            if opts=="--entity_scan":
+                self.entity_scan = True
+            if opts=="--file_scan":
+                self.file_scan = True
+            if opts=="--file_inheritance":
+                self.file_inheritance = True
+            if opts=="--excludeExLib":
+                self.excludeExLib = True
+            if opts=="--format":
+                self.export_format = arg
+            if opts=="--ignore_dependencies_containing":
+                self.ignore_dependencies_containing = arg
+        if (self.project_name is None) or (self.language is None):
+            print('!!!Usage: python generate.py -s source_directory -l language(s) [-o output_directory] \
+                [-p project_name] [-a analysis_name] [--file_scan] [--entity_scan] [--file_inheritance] \
+                [--excludeExLib] [--ignore_dependencies_containing=] [--format=graphml,dot,d3]')
+            print("example:")
+            print('python generate.py -s D:\idea_workspace\Analyser4J -l java -o out -p Analyser4J -a test --file_scan --entity_scan --file_inheritance --excludeExLib --format=graphml,d3,tabular_file')
+            return 
+        self.entry()
 
+            
+    def entry(self):
+        config={
+            "project_name": "example-project",
+            "ignore_dependencies_containing":[],
+            "only_permit_file_extensions":[],
+        }
+        config['source_directory']=self.source_directory
+        config['analysis_name']=self.analysis_name
+        config['project_name']=self.project_name
+        if self.project_name:
+            config['project_name']=self.project_name
+        else:
+            config['project_name']=="unamed"
+        if self.ignore_dependencies_containing:
+            config['ignore_dependencies_containing']=self.ignore_dependencies_containing.split(',')
+        if self.export_format:
+            config['export']={"directory": self.output_directory}
+            export_format=self.export_format.split(',')
+            if "graphml" in export_format:
+                config['export']["graphml"]=""
+            if "dot" in export_format:
+                config['export']["dot"]=""
+            if "d3" in export_format:
+                config['export']["d3"]=""
+            if "tabular_file" in export_format:
+                config['export']["tabular_file"]=""
+
+        language=self.language.split(',')
+        for k,v in SUPPORT_LANG.items():
+            if k in language:
+                config["only_permit_file_extensions"].extend(v.split(','))               
+        
+        if self.file_scan:
+            config['file_scan']=["number_of_methods","source_lines_of_code",
+                "dependency_graph","louvain_modularity","fan_in_out","tfidf"]
+        if self.entity_scan:
+            config['entity_scan']=["number_of_methods","source_lines_of_code",
+                "dependency_graph","inheritance_graph","complete_graph",
+                "louvain_modularity","fan_in_out","tfidf"]
+
+        analysis = Analysis()
+        configAnalysis(analysis,config)
+        analysis.start_timer()
+        analysis=self.start_scanning(analysis)
+        if self.excludeExLib: analysis.clear_external()
+        if self.file_inheritance: analysis.merge_file_inheritance()
+        analysis.export()
+        analysis.stop_timer()
+        analysis.statistics.add(key=Statistics.Key.ANALYSIS_RUNTIME, value=analysis.duration())
+        self._clear_all_parsers()
+        
     def start(self,**kwargs):
         analysis_dict=DEFAULT_CONFIG.copy()
         for k,v in kwargs.items():
@@ -104,17 +212,11 @@ class GraphGenerator(Analyzer):
         start_time = datetime.now()
         # 文件系统图
         self._create_filesystem_graph(analysis)
-        # 文件级网络
-        if (ConfigKeyAnalysis.FILE_SCAN.name.lower() in analysis.scan_types) and    \
-         not (ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis.scan_types):
-            self._create_file_results(analysis)
-
-        # 类网络
-        if ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis.scan_types:
+        if (ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis.scan_types) or \
+            (ConfigKeyAnalysis.FILE_SCAN.name.lower() in analysis.scan_types):
             self._create_file_results(analysis)
             self._create_entity_results(analysis)
         LOGGER.info_done('scanning complete')
-
 
         if analysis.contains_code_metrics:
             self._calculate_code_metric_results(analysis)
@@ -128,6 +230,7 @@ class GraphGenerator(Analyzer):
         analysis.statistics.add(key=Statistics.Key.TOTAL_RUNTIME, value=analysis.total_runtime)
         # analysis.export()
         LOGGER.info_done(f'total runtime of analysis: {analysis.total_runtime}')
+        return analysis
 
 
 
@@ -246,7 +349,6 @@ def configAnalysis(analysis: Analysis,analysis_dict:dict):
 
         if ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis_dict:
             for configured_metric in analysis_dict[ConfigKeyAnalysis.ENTITY_SCAN.name.lower()]:
-
                 # necessary indicator what graph representations are relevant for graph based metrics
                 if configured_metric == ConfigKeyEntityScan.DEPENDENCY_GRAPH.name.lower():
                     analysis.create_graph_representation(GraphType.ENTITY_RESULT_DEPENDENCY_GRAPH)
@@ -313,6 +415,7 @@ def configAnalysis(analysis: Analysis,analysis_dict:dict):
             analysis.scan_types.append(ConfigKeyAnalysis.ENTITY_SCAN.name.lower())
 
         analysis.analysis_name = analysis_dict[ConfigKeyAnalysis.ANALYSIS_NAME.name.lower()]
+        analysis.project_name = analysis_dict[ConfigKeyAnalysis.PROJECT_NAME.name.lower()]
         analysis.source_directory = analysis_dict[ConfigKeyAnalysis.SOURCE_DIRECTORY.name.lower()]
 
         # TODO: check for other optional keys/values and assign
@@ -321,58 +424,12 @@ def configAnalysis(analysis: Analysis,analysis_dict:dict):
             analysis.only_permit_languages = analysis_dict[ConfigKeyAnalysis.ONLY_PERMIT_LANGUAGES.name.lower()]
         if ConfigKeyAnalysis.ONLY_PERMIT_FILE_EXTENSIONS.name.lower() in analysis_dict:
             analysis.only_permit_file_extensions = analysis_dict[ConfigKeyAnalysis.ONLY_PERMIT_FILE_EXTENSIONS.name.lower()]
-            print(analysis.only_permit_file_extensions)
 
 
 if __name__ == '__main__':
     graphGenerator=GraphGenerator()
-    analysis_dict={
-        "project_name": "j-example-project",
-        "analysis_name": "check_j_files",
-        "source_directory": r"D:\idea_workspace\ACPG4J",
-        # "source_directory": r"D:\idea_workspace\joern-javaTools",
-        # "only_permit_languages":['java'],
-        "only_permit_file_extensions":['.java'],
-        "ignore_dependencies_containing":[],        
-        "file_scan":[
-            "number_of_methods",
-            "source_lines_of_code",
-            "dependency_graph",
-            "louvain_modularity",
-            "fan_in_out",
-            "tfidf"
-        ],
-        "entity_scan":[
-            "number_of_methods",
-            "source_lines_of_code",
-            "dependency_graph",#(or dependency_graph/inheritance_graph/complete_graph)
-            "inheritance_graph",
-            "complete_graph",
-            "louvain_modularity",
-            "fan_in_out",
-            "tfidf"
-        ],
-        "export":{
-            "directory": r"D:\python-workspace\SoftwareNetGen\out",
-            "graphml":"",
-            # "dot":"",
-            "d3":""
-            # (and/or json/tabular_file/tabular_console_overall)
-        }
-    }
-    graphGenerator.start_with_config(analysis_dict,True,True,False)
-    # graphGenerator.start_with_config(analysis_dict,False,True)
-    # from calculate.graphCalculator import GraphCalculator,read_graphml
-    # path="D:\python-workspace\emerge\out\emerge-file_result_dependency_graph.graphml"
-    # graph=read_graphml(path)
-    # # metrics='degree,in_degree,out_degree,betweenness,katz_centrality,pagerank,eigenvector_centrality,average_neighbor_degree,clustering_coefficient,square_clustering,closeness_centrality,degree_centrality,out_degree_centrality,in_degree_centrality,betweenness_centrality,load_centrality,number_of_cliques,core_number,number_ancestors,number_descendants,eccentricity,ripple_degree,inneredge_count,out_edge_count,in_variable_edge_count,strength,reverse_ripple'
-    # metrics=['degree', 'in_degree', 'out_degree', 'betweenness', 'katz_centrality', 'pagerank', 'eigenvector_centrality', 
-    #     'average_neighbor_degree', 'clustering_coefficient', 'square_clustering', 'closeness_centrality', 
-    #     'degree_centrality', 'out_degree_centrality', 'in_degree_centrality', 
-    #     'betweenness_centrality', 'load_centrality', 'number_of_cliques', 'core_number', 'number_ancestors', 'number_descendants', 'eccentricity', 
-    #     'ripple_degree', 'inneredge_count', 'out_edge_count', 'in_variable_edge_count', 'strength', 'reverse_ripple'
-    # ]
-    # graphCalculator=GraphCalculator(graph,metrics)
-    # df=graphCalculator.getDataDF()
-    # print(df)
+    sys.argv.pop(0)
+    print(sys.argv)
+    argv=sys.argv
+    graphGenerator.main(argv)
 

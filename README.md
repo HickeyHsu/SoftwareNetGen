@@ -36,6 +36,11 @@ def __new__(cls, *args, **kwargs):
 ```
 
 ## 配置运行
+### cli
+```
+python generate.py -s D:\idea_workspace\Analyser4J -l java -o out -p Analyser4J -a test --file_scan --entity_scan --file_inheritance --excludeExLib --format=graphml,d3,tabular_file
+```
+### py
 调用generate.py中的GraphGenerator
 必须要设置的参数包括：
 "source_directory"：目标项目目录

@@ -32,7 +32,8 @@ class GraphExporter:
 
     @staticmethod
     def export_graph_as_graphml(graph, export_name, export_dir):
-        nx.write_graphml(graph, export_dir + '/' + 'emerge-' + export_name + '.graphml')
+        nx.write_graphml(graph, export_dir + '/' + export_name + '.graphml')
+    
 
 
 class TableExporter:
@@ -105,7 +106,7 @@ class TableExporter:
     def export_statistics_and_metrics_as_file(statistics: Dict[str, Any], overall_metric_results: Dict[str, Any], local_metric_results: Dict[str, Dict[str, Any]], analysis_name: str, export_dir: str):
         """Writes all collected statistics, overall metric results and local metric results to a file, formatted by a prettytable."""
 
-        file = open(export_dir + '/' + 'emerge-' + 'statistics-metrics' + '.txt', 'w')
+        file = open(export_dir + '/' + 'statistics-metrics' + '.txt', 'w')
 
         if bool(statistics):
             file.write(f'the following statistics were collected in {analysis_name}\n')
@@ -179,7 +180,7 @@ class JSONExporter:
         """Exports all collected statistics, overall metric results and local metric results in JSON."""
 
         if bool(statistics) or bool(overall_metric_results):
-            with open(export_dir + '/' + 'emerge-' + 'statistics-and-metrics' + '.json', 'w') as file:
+            with open(export_dir + '/' + 'statistics-and-metrics' + '.json', 'w') as file:
                 json_output: Dict[str, Any] = {}
                 json_statistics = {}
                 json_metrics = {}
@@ -228,7 +229,7 @@ class DOTExporter:
 
     @staticmethod
     def export_graph_as_dot(graph, export_name, export_dir):
-        write_dot(graph, export_dir + '/' + 'emerge-' + export_name + '.dot')
+        write_dot(graph, export_dir + '/' + export_name + '.dot')
 
 
 class D3Exporter:

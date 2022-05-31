@@ -28,7 +28,13 @@ from emerge.export import GraphExporter, TableExporter, JSONExporter, DOTExporte
 
 LOGGER = Logger(logging.getLogger('analysis'))
 coloredlogs.install(level='E', logger=LOGGER.logger(), fmt=Logger.log_format)
-
+GRAPH_TYPE_NAME={
+    GraphType.FILE_RESULT_DEPENDENCY_GRAPH.name.lower():"FDG",
+    GraphType.ENTITY_RESULT_DEPENDENCY_GRAPH.name.lower():"EDG",
+    GraphType.ENTITY_RESULT_INHERITANCE_GRAPH.name.lower():"EIG",
+    GraphType.ENTITY_RESULT_COMPLETE_GRAPH.name.lower():"ECG",
+    GraphType.FILESYSTEM_GRAPH.name.lower():"FG",
+}
 
 class Analysis:
     """Contains the configuration for a concrete source analysis, responsible for calculating code/graph metrics and results."""
@@ -40,6 +46,7 @@ class Analysis:
         self.metrics_for_entity_results: Dict[str, AbstractMetric] = {}
 
         self.analysis_name: Optional[str] = None
+        self.project_name: Optional[str] = None
         self.source_directory: Optional[str] = None
 
         self.export_directory: Optional[str] = None
@@ -256,40 +263,42 @@ class Analysis:
         statistics: Dict[str, Any] = self.get_statistics()
         overall_metric_results: Dict[str, Any] = self.get_overall_metric_results()
         local_metric_results: Dict[str, Dict[str, Any]] = self.get_local_metric_results()
-        analysis_name: str = self.analysis_name
-
+        export_name=self.analysis_name+"-"
+        if not os.path.exists(self.export_directory+"/"+self.project_name):
+            os.mkdir(self.export_directory+"/"+self.project_name)
         if self.export_graphml:
             created_graph_representations = {k: v for (k, v) in self.graph_representations.items() if v is not None}
             representation: GraphRepresentation
             for _, representation in created_graph_representations.items():
-                GraphExporter.export_graph_as_graphml(representation.digraph, representation.graph_type.name.lower(), self.export_directory)
+                GraphExporter.export_graph_as_graphml(representation.digraph, 
+                    export_name+GRAPH_TYPE_NAME[representation.graph_type.name.lower()], self.export_directory+"/"+self.project_name)
 
         if self.export_dot:
             created_graph_representations = {k: v for (k, v) in self.graph_representations.items() if v is not None}
             representation: GraphRepresentation
             for _, representation in created_graph_representations.items():
-                DOTExporter.export_graph_as_dot(representation.digraph,
-                                                representation.graph_type.name.lower(), self.export_directory)
+                DOTExporter.export_graph_as_dot(representation.digraph, 
+                    export_name+GRAPH_TYPE_NAME[representation.graph_type.name.lower()], self.export_directory+"/"+self.project_name)
 
         if self.export_d3:
             created_graph_representations = {k: v for (k, v) in self.graph_representations.items() if v is not None}
-            FileManager.copy_force_graph_template_to_export_dir(self.export_directory)
+            FileManager.copy_force_graph_template_to_export_dir(self.export_directory+"/"+self.project_name)
             D3Exporter.export_d3_force_directed_graph(
-                created_graph_representations, statistics, overall_metric_results, analysis_name, self.export_directory
+                created_graph_representations, statistics, overall_metric_results, export_name, self.export_directory+"/"+self.project_name
             )
 
         if self.export_tabular_file:
-            TableExporter.export_statistics_and_metrics_as_file(statistics, overall_metric_results, local_metric_results, analysis_name, self.export_directory)
+            TableExporter.export_statistics_and_metrics_as_file(statistics, overall_metric_results, local_metric_results, export_name, self.export_directory+"/"+self.project_name)
 
         if self.export_json:
-            JSONExporter.export_statistics_and_metrics(statistics, overall_metric_results, local_metric_results, analysis_name, self.export_directory)
+            JSONExporter.export_statistics_and_metrics(statistics, overall_metric_results, local_metric_results, export_name, self.export_directory+"/"+self.project_name)
 
         if self.export_tabular_console_overall:
-            TableExporter.export_statistics_and_metrics_to_console(statistics, overall_metric_results, None, analysis_name)
+            TableExporter.export_statistics_and_metrics_to_console(statistics, overall_metric_results, None, export_name)
         elif self.export_tabular_console:
-            TableExporter.export_statistics_and_metrics_to_console(statistics, overall_metric_results, local_metric_results, analysis_name)
+            TableExporter.export_statistics_and_metrics_to_console(statistics, overall_metric_results, local_metric_results, export_name)
 
-        resolved_export_path = PosixPath(self.export_directory).resolve()
+        resolved_export_path = PosixPath(self.export_directory+"/"+self.project_name).resolve()
 
         LOGGER.info_done(f'all your generated/exported data can be found here: {resolved_export_path}')
         if self.export_d3:
@@ -526,17 +535,15 @@ class Analysis:
         """
         file_results = {k: v for (k, v) in self.results.items() if isinstance(v, AbstractFileResult)}
         entity_results = {k: v for (k, v) in self.results.items() if isinstance(v, AbstractEntityResult)}
-
         # make sure we compute dependency/inheritance graphs before composing complete graphs
         simple_graph_representations = {k: v for (k, v) in self.graph_representations.items() if v is not None and
                                         v.graph_type is not GraphType.ENTITY_RESULT_COMPLETE_GRAPH}
 
         complete_graph_representation = {k: v for (k, v) in self.graph_representations.items() if v is not None and
                                          v.graph_type is GraphType.ENTITY_RESULT_COMPLETE_GRAPH}
-
         representation: GraphRepresentation
         for name, representation in simple_graph_representations.items():
-
+        
             if name == GraphType.FILE_RESULT_DEPENDENCY_GRAPH.name.lower():
                 # representation.calculate_dependency_graph_from_results(file_results)
                 representation.calculate_dependency_graph_from_results_file_merged(file_results)

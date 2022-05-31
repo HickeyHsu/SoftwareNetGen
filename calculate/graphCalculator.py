@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from calculate.localMetricsNEW import LocalMetrics
+from calculate.localMetrics import LocalMetrics
 import pandas as pd
 class GraphCalculator:
     def __init__(self,classGraph,metrics):
