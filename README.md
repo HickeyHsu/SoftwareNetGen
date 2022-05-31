@@ -40,6 +40,8 @@ def __new__(cls, *args, **kwargs):
 ```
 python generate.py -s D:\idea_workspace\Analyser4J -l java -o out -p Analyser4J -a test --file_scan --entity_scan --file_inheritance --excludeExLib --format=graphml,d3,tabular_file
 ```
+
+metrics='degree,in_degree,out_degree,betweenness,katz_centrality,pagerank,eigenvector_centrality,average_neighbor_degree,clustering_coefficient,square_clustering,closeness_centrality,degree_centrality,out_degree_centrality,in_degree_centrality,betweenness_centrality,load_centrality,number_of_cliques,core_number,number_ancestors,number_descendants,eccentricity,ripple_degree,inneredge_count,out_edge_count,in_variable_edge_count,strength,reverse_ripple'
 ### py
 调用generate.py中的GraphGenerator
 必须要设置的参数包括：

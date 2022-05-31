@@ -23,6 +23,7 @@ from emerge.metrics.sloc.sloc import SourceLinesOfCodeMetric
 from emerge.metrics.faninout.faninout import FanInOutMetric
 from emerge.metrics.modularity.modularity import LouvainModularityMetric
 from emerge.metrics.tfidf.tfidf import TFIDFMetric
+from emerge.metrics.social.social import SocialNetworkMetric
 
 from emerge.graph import GraphType
 from emerge.log import Logger
@@ -87,7 +88,7 @@ class ConfigKeyFileScan(EnumKeyValid, Enum):
     FAN_IN_OUT = auto()
     LOUVAIN_MODULARITY = auto()
     TFIDF = auto()
-
+    SNA = auto()
 
 @unique
 class ConfigKeyEntityScan(EnumKeyValid, Enum):
@@ -486,6 +487,14 @@ class Configuration:
                             tfidf_metric.metric_name: tfidf_metric
                         })
 
+                    # sna
+                    if ConfigKeyFileScan.SNA.name.lower() in configured_metric:
+                        LOGGER.debug(f'adding {SocialNetworkMetric.pretty_metric_name}...')
+                        graph_representations = analysis.existing_graph_representations
+                        sna_metric = SocialNetworkMetric(analysis)
+                        analysis.metrics_for_file_results.update({
+                            sna_metric.metric_name: sna_metric
+                        })
                     # TODO: add more metrics
 
             if ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis_dict:

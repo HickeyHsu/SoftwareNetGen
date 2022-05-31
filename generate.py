@@ -161,7 +161,7 @@ class GraphGenerator(Analyzer):
         
         if self.file_scan:
             config['file_scan']=["number_of_methods","source_lines_of_code",
-                "dependency_graph","louvain_modularity","fan_in_out","tfidf"]
+                "dependency_graph","louvain_modularity","fan_in_out","tfidf","sna"]
         if self.entity_scan:
             config['entity_scan']=["number_of_methods","source_lines_of_code",
                 "dependency_graph","inheritance_graph","complete_graph",
