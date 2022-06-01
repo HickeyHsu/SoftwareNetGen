@@ -53,7 +53,6 @@ class SocialNetworkMetric(GraphMetric):
         SNA_INNEREDGE_COUNT_DEPENDENCY_GRAPH = auto()
         SNA_OUT_EDGE_COUNT_DEPENDENCY_GRAPH = auto()
         SNA_IN_VARIABLE_EDGE_COUNT_DEPENDENCY_GRAPH = auto()
-        SNA_STRENGTH_DEPENDENCY_GRAPH = auto()
         SNA_REVERSE_RIPPLE_DEPENDENCY_GRAPH = auto()    
 
     def __init__(self, analysis, graph_representations: Dict):
@@ -62,7 +61,7 @@ class SocialNetworkMetric(GraphMetric):
             'average_neighbor_degree', 'clustering_coefficient', 'square_clustering', 'closeness_centrality', 
             'degree_centrality', 'out_degree_centrality', 'in_degree_centrality', 
             'betweenness_centrality', 'load_centrality', 'number_of_cliques', 'core_number', 'number_ancestors', 'number_descendants', 'eccentricity', 
-            'ripple_degree', 'inneredge_count', 'out_edge_count', 'in_variable_edge_count', 'strength', 'reverse_ripple'
+            'ripple_degree', 'inneredge_count', 'out_edge_count', 'in_variable_edge_count', 'reverse_ripple'
         ]
         self.result={}
 
@@ -107,7 +106,6 @@ class SocialNetworkMetric(GraphMetric):
                     self.Keys.SNA_INNEREDGE_COUNT_DEPENDENCY_GRAPH.value: nodeValues["inneredge_count"][nodeID],
                     self.Keys.SNA_OUT_EDGE_COUNT_DEPENDENCY_GRAPH.value: nodeValues["out_edge_count"][nodeID],
                     self.Keys.SNA_IN_VARIABLE_EDGE_COUNT_DEPENDENCY_GRAPH.value: nodeValues["in_variable_edge_count"][nodeID],
-                    self.Keys.SNA_STRENGTH_DEPENDENCY_GRAPH.value: nodeValues["strength"][nodeID],
                     self.Keys.SNA_REVERSE_RIPPLE_DEPENDENCY_GRAPH.value: nodeValues["reverse_ripple"][nodeID]
                 }
                 

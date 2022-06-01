@@ -344,7 +344,15 @@ def configAnalysis(analysis: Analysis,analysis_dict:dict):
                     analysis.metrics_for_file_results.update({
                         tfidf_metric.metric_name: tfidf_metric
                     })
-
+                
+                # SNA
+                if ConfigKeyFileScan.SNA.name.lower() in configured_metric:
+                    LOGGER.debug(f'adding {SocialNetworkMetric.pretty_metric_name}...')
+                    graph_representations = analysis.existing_graph_representations
+                    sna_metric = SocialNetworkMetric(analysis, graph_representations)
+                    analysis.metrics_for_file_results.update({
+                        sna_metric.metric_name: sna_metric
+                    })
                 # TODO: add more metrics
 
         if ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis_dict:
