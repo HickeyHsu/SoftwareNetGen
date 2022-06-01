@@ -1,31 +1,30 @@
+import logging,coloredlogs
+import os
 from typing import Dict, Any
 import pandas as pd
-import logging
-import coloredlogs
-from emerge.analysis import Analysis
 
 
-from emerge.graph import GraphRepresentation, GraphType
+
+
 from emerge.log import Logger
-LOGGER = Logger(logging.getLogger('analysis'))
-def export_df(analysis:Analysis):
-    local_metric_results: Dict[str, Dict[str, Any]] = analysis.get_local_metric_results()
-    export_name=analysis.analysis_name+"-"
-    export_metrics_as_df(local_metric_results,export_name, analysis.export_directory+"/"+analysis.project_name)
-def export_metrics_as_df(
-    # overall_metric_results: Dict[str, Any],
-    local_metric_results: Dict[str, Dict[str, Any]], analysis_name: str, export_dir: str):
-    if local_metric_results is not None and bool(local_metric_results):
-        lms=local_metric_results.copy()
-        LOGGER.info_start(f'the following local metrics were collected in {analysis_name}')
-        results={}
-        for node,metrics in lms.items():
-            if("fan-in-inheritance-graph" in metrics.keys()):   
-                m={}             
-                for key in metrics.keys():                    
-                    if"tag_" not in key:    
-                        m[key]=metrics[key]
-                        results[node]=m
+LOGGER = Logger(logging.getLogger('analysis'))    
+def export_features_json(local_metric_results: Dict[str, Dict[str, Any]],export_directory,project_name,analysis_name:str):
+    export_name=analysis_name+"-features.json"
+    LOGGER.info_start(f'the following local metrics were transformed to dataframe in {analysis_name}')
+    local_metric_df=local_metrics_to_df(local_metric_results)
+    export_path=os.path.join(export_directory,project_name,export_name)
+    local_metric_df.to_json(export_path)
 
-    df=pd.DataFrame(results).T
-    print(df)
+
+def local_metrics_to_df(local_metric_results: Dict[str, Dict[str, Any]])->pd.DataFrame:
+    if local_metric_results is not None and bool(local_metric_results):
+        
+        results=[]
+        for node,metrics in local_metric_results.items():
+            if("fan-in-inheritance-graph" in metrics.keys()):   
+                m={"node-id":node}
+                for key in metrics.keys():                    
+                    if("tag_" not in key) or ("entity" not in key) : m[key]=metrics[key]                        
+                results.append(m)
+    df=pd.DataFrame(results).set_index("node-id")
+    return df

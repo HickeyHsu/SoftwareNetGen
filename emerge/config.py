@@ -115,6 +115,7 @@ class ConfigKeyExport(EnumKeyValid, Enum):
     TABULAR_CONSOLE_OVERALL = auto()
     JSON = auto()
     D3 = auto()
+    FEATURE = auto()
 
 
 class Configuration:
@@ -491,7 +492,7 @@ class Configuration:
                     if ConfigKeyFileScan.SNA.name.lower() in configured_metric:
                         LOGGER.debug(f'adding {SocialNetworkMetric.pretty_metric_name}...')
                         graph_representations = analysis.existing_graph_representations
-                        sna_metric = SocialNetworkMetric(analysis)
+                        sna_metric = SocialNetworkMetric(analysis, graph_representations)
                         analysis.metrics_for_file_results.update({
                             sna_metric.metric_name: sna_metric
                         })

@@ -24,6 +24,7 @@ from emerge.core import format_timedelta
 from emerge.files import truncate_directory, LanguageExtension
 
 from emerge.export import GraphExporter, TableExporter, JSONExporter, DOTExporter, D3Exporter
+from calculate.tools import export_features_json
 
 
 LOGGER = Logger(logging.getLogger('analysis'))
@@ -60,6 +61,7 @@ class Analysis:
         self.export_json: bool = False
         self.export_dot: bool = False
         self.export_d3: bool = False
+        self.export_feature: bool = False
 
         self.only_permit_languages: List[LanguageType] = []
         self.only_permit_file_extensions: List[str] = []
@@ -292,7 +294,9 @@ class Analysis:
 
         if self.export_json:
             JSONExporter.export_statistics_and_metrics(statistics, overall_metric_results, local_metric_results, export_name, self.export_directory+"/"+self.project_name)
-
+        
+        if self.export_feature:
+            export_features_json(local_metric_results,self.export_directory,self.project_name,self.analysis_name)
         if self.export_tabular_console_overall:
             TableExporter.export_statistics_and_metrics_to_console(statistics, overall_metric_results, None, export_name)
         elif self.export_tabular_console:

@@ -22,7 +22,6 @@ from emerge.languages.kotlinparser import KotlinParser
 from emerge.languages.objcparser import ObjCParser
 from emerge.languages.rubyparser import RubyParser
 from emerge.languages.pyparser import PythonParser
-from calculate.tools import export_df
 
 
 PARSERS:Dict[str, AbstractParser] = {
@@ -147,14 +146,17 @@ class GraphGenerator(Analyzer):
         if self.export_format:
             config['export']={"directory": self.output_directory}
             export_format=self.export_format.split(',')
-            if "graphml" in export_format:
-                config['export']["graphml"]=""
-            if "dot" in export_format:
-                config['export']["dot"]=""
-            if "d3" in export_format:
-                config['export']["d3"]=""
-            if "tabular_file" in export_format:
-                config['export']["tabular_file"]=""
+            for format in ConfigKeyExport:
+                if format.name.lower() in export_format:
+                    config['export'][format.name.lower()]=""
+            # if "graphml" in export_format:
+            #     config['export']["graphml"]=""
+            # if "dot" in export_format:
+            #     config['export']["dot"]=""
+            # if "d3" in export_format:
+            #     config['export']["d3"]=""
+            # if "tabular_file" in export_format:
+            #     config['export']["tabular_file"]=""
 
         language=self.language.split(',')
         for k,v in SUPPORT_LANG.items():
@@ -174,9 +176,8 @@ class GraphGenerator(Analyzer):
         analysis.start_timer()
         analysis=self.start_scanning(analysis)
         if self.excludeExLib: analysis.clear_external()
-        if self.file_inheritance: analysis.merge_file_inheritance()
-        export_df(analysis)
-        # analysis.export()
+        if self.file_inheritance: analysis.merge_file_inheritance()        
+        analysis.export()
         analysis.stop_timer()
         analysis.statistics.add(key=Statistics.Key.ANALYSIS_RUNTIME, value=analysis.duration())
         self._clear_all_parsers()
@@ -261,6 +262,8 @@ def configAnalysis(analysis: Analysis,analysis_dict:dict):
             analysis.export_json = True
         if ConfigKeyExport.D3.name.lower() in export_config:
             analysis.export_d3 = True
+        if ConfigKeyExport.FEATURE.name.lower() in export_config:
+            analysis.export_feature = True
 
         # exclude directories and files from scanning
         if ConfigKeyAnalysis.IGNORE_DIRECTORIES_CONTAINING.name.lower() in analysis_dict:
@@ -443,4 +446,3 @@ if __name__ == '__main__':
     print(sys.argv)
     argv=sys.argv
     graphGenerator.main(argv)
-
