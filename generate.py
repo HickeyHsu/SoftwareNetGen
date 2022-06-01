@@ -22,7 +22,9 @@ from emerge.languages.kotlinparser import KotlinParser
 from emerge.languages.objcparser import ObjCParser
 from emerge.languages.rubyparser import RubyParser
 from emerge.languages.pyparser import PythonParser
-from emerge.abstractresult import AbstractFileResult, AbstractResult
+from calculate.tools import export_df
+
+
 PARSERS:Dict[str, AbstractParser] = {
     JavaParser.parser_name(): JavaParser(),
     SwiftParser.parser_name(): SwiftParser(),
@@ -173,7 +175,8 @@ class GraphGenerator(Analyzer):
         analysis=self.start_scanning(analysis)
         if self.excludeExLib: analysis.clear_external()
         if self.file_inheritance: analysis.merge_file_inheritance()
-        analysis.export()
+        export_df(analysis)
+        # analysis.export()
         analysis.stop_timer()
         analysis.statistics.add(key=Statistics.Key.ANALYSIS_RUNTIME, value=analysis.duration())
         self._clear_all_parsers()
