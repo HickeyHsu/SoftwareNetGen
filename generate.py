@@ -149,14 +149,7 @@ class GraphGenerator(Analyzer):
             for format in ConfigKeyExport:
                 if format.name.lower() in export_format:
                     config['export'][format.name.lower()]=""
-            # if "graphml" in export_format:
-            #     config['export']["graphml"]=""
-            # if "dot" in export_format:
-            #     config['export']["dot"]=""
-            # if "d3" in export_format:
-            #     config['export']["d3"]=""
-            # if "tabular_file" in export_format:
-            #     config['export']["tabular_file"]=""
+
 
         language=self.language.split(',')
         for k,v in SUPPORT_LANG.items():

@@ -39,7 +39,7 @@ class Analyzer:
         """
         analyses_names = [x.analysis_name for x in self._config.analyses]
         LOGGER.info_start(f'starting to analyze {self._config.project_name}')
-        LOGGER.debug(f'found the following analyses: ' + ', '.join(analyses_names))
+        LOGGER.debug('found the following analyses: ' + ', '.join(analyses_names))
 
         analysis: Analysis
         for i, analysis in enumerate(self._config.analyses, start=1):
