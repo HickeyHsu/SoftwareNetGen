@@ -486,13 +486,10 @@ def configAnalysis(analysis: Analysis,analysis_dict:dict):
 
 
 if __name__ == '__main__':
-    # graphGenerator=GraphGenerator()
-    # sys.argv.pop(0)
-    # print(sys.argv)
-    # argv=sys.argv
-    # graphGenerator.main(argv)
-    from calculate.metrics.javaCodeMetric import test
-    source_directory=r"D:\idea_workspace\Analyser4J"
-    out_dir=r"D:\temp\out\1"
-    test(source_directory,out_dir)
+    graphGenerator=GraphGenerator()
+    sys.argv.pop(0)
+    print(sys.argv)
+    argv=sys.argv
+    graphGenerator.main(argv)
+    
     
