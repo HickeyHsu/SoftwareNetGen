@@ -52,7 +52,6 @@ class GraphCalculator:
             nodeID=nodeIDs[i]
             bug=bugs[i]
             nodeMetrics=[]
-            bug=bug
             for m in range(0,len(goodMetrics)):
                 nodeMetrics.append(nodeValues[m][nodeID])
             nodeData=(nodeID,nodeMetrics,bug)

@@ -54,7 +54,7 @@ class SocialNetworkMetric(GraphMetric):
         SNA_OUT_EDGE_COUNT_DEPENDENCY_GRAPH = auto()
         SNA_IN_VARIABLE_EDGE_COUNT_DEPENDENCY_GRAPH = auto()
         SNA_REVERSE_RIPPLE_DEPENDENCY_GRAPH = auto()    
-
+        SNA_ABS_PATH = auto()  
     def __init__(self, analysis, graph_representations: Dict):
         super().__init__(analysis, graph_representations)
         self.__metrics=['degree', 'in_degree', 'out_degree', 'betweenness', 'katz_centrality', 'pagerank', 'eigenvector_centrality', 
@@ -80,7 +80,10 @@ class SocialNetworkMetric(GraphMetric):
             nodeValues=self.result
             for node_with_unique_result_name in nodesIDs:
                 nodeID=node_with_unique_result_name
+                if "absolute_name" not in nodesIDs[nodeID]:
+                    nodesIDs[nodeID]["absolute_name"]="EXTERNAL"
                 data={
+                    self.Keys.SNA_ABS_PATH.value:nodesIDs[nodeID]["absolute_name"],
                     self.Keys.SNA_DEGREE_DEPENDENCY_GRAPH.value: nodeValues["degree"][nodeID],
                     self.Keys.SNA_IN_DEGREE_DEPENDENCY_GRAPH.value: nodeValues["in_degree"][nodeID],
                     self.Keys.SNA_OUT_DEGREE_DEPENDENCY_GRAPH.value: nodeValues["out_degree"][nodeID],

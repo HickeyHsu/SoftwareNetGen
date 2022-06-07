@@ -3,6 +3,8 @@ import sys,getopt
 from datetime import datetime
 from typing import Dict
 
+from pandas import DataFrame
+
 from emerge.analysis import Analysis
 from emerge.analyzer import Analyzer
 from emerge.config import *
@@ -22,7 +24,7 @@ from emerge.languages.kotlinparser import KotlinParser
 from emerge.languages.objcparser import ObjCParser
 from emerge.languages.rubyparser import RubyParser
 from emerge.languages.pyparser import PythonParser
-
+from calculate.tools import local_metrics_to_df
 
 PARSERS:Dict[str, AbstractParser] = {
     JavaParser.parser_name(): JavaParser(),
@@ -93,6 +95,9 @@ class GraphGenerator(Analyzer):
         self.file_inheritance=False
         self.excludeExLib=False
     def main(self,argv):
+        self.args_parse(argv)
+        self.entry()
+    def args_parse(self,argv):
         opts,args=getopt.getopt(argv,"s:o:l:p:a:",
             ["entity_scan","file_scan","file_inheritance","excludeExLib","format=","ignore_dependencies_containing="])
         for opts,arg in opts:
@@ -124,32 +129,78 @@ class GraphGenerator(Analyzer):
                 [--excludeExLib] [--ignore_dependencies_containing=] [--format=graphml,dot,d3]')
             print("example:")
             print('python generate.py -s D:\idea_workspace\Analyser4J -l java -o out -p Analyser4J -a test --file_scan --entity_scan --file_inheritance --excludeExLib --format=graphml,d3,tabular_file')
-            return 
-        self.entry()
-
-            
-    def entry(self):
+            return
+    def generate_metricDF(
+        self,source_directory,language,project_name=None,analysis_name=None,
+        ignore_dependencies_containing=None,export_format=None,output_directory=None
+        ):
         config={
             "project_name": "example-project",
             "ignore_dependencies_containing":[],
             "only_permit_file_extensions":[],
+            'file_scan':["number_of_methods","source_lines_of_code",
+                "dependency_graph","louvain_modularity","fan_in_out","sna"],
+            'entity_scan':["number_of_methods","source_lines_of_code",
+                "dependency_graph","inheritance_graph","complete_graph",
+                "louvain_modularity","fan_in_out"]
+        }
+        config['source_directory']=source_directory
+        config['analysis_name']=analysis_name
+        if project_name:
+            config['project_name']=project_name
+        else:
+            config['project_name']="unamed"
+        if ignore_dependencies_containing:
+            config['ignore_dependencies_containing']=ignore_dependencies_containing.split(',')
+        language=language.split(',')
+        for k,v in SUPPORT_LANG.items():
+            if k in language:
+                config["only_permit_file_extensions"].extend(v.split(',')) 
+        if export_format:
+            config['export']={"directory": output_directory}
+            export_format=export_format.split(',')
+            for lformat in ConfigKeyExport:
+                if lformat.name.lower() in export_format:
+                    config['export'][lformat.name.lower()]=""
+        analysis = Analysis()
+        configAnalysis(analysis,config)
+        analysis.start_timer()
+        analysis=self.start_scanning(analysis,cal_metric=False)
+        if self.file_inheritance: analysis.merge_file_inheritance()
+        if analysis.contains_code_metrics:
+                self._calculate_code_metric_results(analysis)
+        if analysis.contains_graph_metrics:
+            analysis.calculate_graph_representations()
+            self._calculate_graph_metric_results(analysis)
+            analysis.add_local_metric_results_to_graphs()
+        local_metric_df=local_metrics_to_df(analysis.get_local_metric_results())        
+        if output_directory:
+            analysis.export()
+        analysis.stop_timer()
+        analysis.statistics.add(key=Statistics.Key.ANALYSIS_RUNTIME, value=analysis.duration())
+        self._clear_all_parsers()
+        return local_metric_df
+
+    def entry(self):
+        config={
+            "project_name": "example-project",
+            "ignore_dependencies_containing":[],
+            "only_permit_file_extensions":[],            
         }
         config['source_directory']=self.source_directory
         config['analysis_name']=self.analysis_name
-        config['project_name']=self.project_name
         if self.project_name:
             config['project_name']=self.project_name
         else:
-            config['project_name']=="unamed"
+            config['project_name']="unamed"
         if self.ignore_dependencies_containing:
             config['ignore_dependencies_containing']=self.ignore_dependencies_containing.split(',')
         if self.export_format:
             config['export']={"directory": self.output_directory}
             export_format=self.export_format.split(',')
-            for format in ConfigKeyExport:
-                if format.name.lower() in export_format:
-                    config['export'][format.name.lower()]=""
-
+            for lformat in ConfigKeyExport:
+                if lformat.name.lower() in export_format:
+                    config['export'][lformat.name.lower()]=""
 
         language=self.language.split(',')
         for k,v in SUPPORT_LANG.items():
@@ -205,7 +256,7 @@ class GraphGenerator(Analyzer):
         self._clear_all_parsers()
 
     
-    def start_scanning(self,analysis: Analysis):
+    def start_scanning(self,analysis: Analysis,cal_metric=True):
         start_time = datetime.now()
         # 文件系统图
         self._create_filesystem_graph(analysis)
@@ -214,13 +265,13 @@ class GraphGenerator(Analyzer):
             self._create_file_results(analysis)
             self._create_entity_results(analysis)
         LOGGER.info_done('scanning complete')
-
-        if analysis.contains_code_metrics:
-            self._calculate_code_metric_results(analysis)
-        if analysis.contains_graph_metrics:
-            analysis.calculate_graph_representations()
-            self._calculate_graph_metric_results(analysis)
-            analysis.add_local_metric_results_to_graphs()
+        if cal_metric:
+            if analysis.contains_code_metrics:
+                self._calculate_code_metric_results(analysis)
+            if analysis.contains_graph_metrics:
+                analysis.calculate_graph_representations()
+                self._calculate_graph_metric_results(analysis)
+                analysis.add_local_metric_results_to_graphs()
         stop_time = datetime.now()
         delta_total_runtime = stop_time - start_time
         analysis.total_runtime = format_timedelta(delta_total_runtime, '%H:%M:%S + %s ms')
@@ -233,6 +284,7 @@ class GraphGenerator(Analyzer):
 
 
 def configAnalysis(analysis: Analysis,analysis_dict:dict):
+    print(analysis_dict)
     # check export config
     if ConfigKeyAnalysis.EXPORT.name.lower() in analysis_dict:
         export_config=analysis_dict[ConfigKeyAnalysis.EXPORT.name.lower()]
@@ -258,184 +310,189 @@ def configAnalysis(analysis: Analysis,analysis_dict:dict):
         if ConfigKeyExport.FEATURE.name.lower() in export_config:
             analysis.export_feature = True
 
-        # exclude directories and files from scanning
-        if ConfigKeyAnalysis.IGNORE_DIRECTORIES_CONTAINING.name.lower() in analysis_dict:
-            for directory in analysis_dict[ConfigKeyAnalysis.IGNORE_DIRECTORIES_CONTAINING.name.lower()]:
-                analysis.ignore_directories_containing.append(directory)
+    # exclude directories and files from scanning
+    if ConfigKeyAnalysis.IGNORE_DIRECTORIES_CONTAINING.name.lower() in analysis_dict:
+        for directory in analysis_dict[ConfigKeyAnalysis.IGNORE_DIRECTORIES_CONTAINING.name.lower()]:
+            analysis.ignore_directories_containing.append(directory)
 
-        # ignore files if given in the configuration
-        if ConfigKeyAnalysis.IGNORE_FILES_CONTAINING.name.lower() in analysis_dict:
-            for file in analysis_dict[ConfigKeyAnalysis.IGNORE_FILES_CONTAINING.name.lower()]:
-                analysis.ignore_files_containing.append(file)
+    # ignore files if given in the configuration
+    if ConfigKeyAnalysis.IGNORE_FILES_CONTAINING.name.lower() in analysis_dict:
+        for file in analysis_dict[ConfigKeyAnalysis.IGNORE_FILES_CONTAINING.name.lower()]:
+            analysis.ignore_files_containing.append(file)
 
-        # ignore dependencies if given in the configuration
-        if ConfigKeyAnalysis.IGNORE_DEPENDENCIES_CONTAINING.name.lower() in analysis_dict:
-            for ignored_dependency in analysis_dict[ConfigKeyAnalysis.IGNORE_DEPENDENCIES_CONTAINING.name.lower()]:
-                analysis.ignore_dependencies_containing.append(ignored_dependency)
+    # ignore dependencies if given in the configuration
+    if ConfigKeyAnalysis.IGNORE_DEPENDENCIES_CONTAINING.name.lower() in analysis_dict:
+        for ignored_dependency in analysis_dict[ConfigKeyAnalysis.IGNORE_DEPENDENCIES_CONTAINING.name.lower()]:
+            analysis.ignore_dependencies_containing.append(ignored_dependency)
 
-        # add replace dependency substring mappings
-        if ConfigKeyAnalysis.IMPORT_ALIASES.name.lower() in analysis_dict:
-            for mapping in analysis_dict[ConfigKeyAnalysis.IMPORT_ALIASES.name.lower()]:
-                for dependency_substring, replaced_dependency_substring in mapping.items():
-                    if analysis.import_aliases_available == False:
-                        analysis.import_aliases_available = True
-                    analysis.import_aliases[dependency_substring] = replaced_dependency_substring
+    # add replace dependency substring mappings
+    if ConfigKeyAnalysis.IMPORT_ALIASES.name.lower() in analysis_dict:
+        for mapping in analysis_dict[ConfigKeyAnalysis.IMPORT_ALIASES.name.lower()]:
+            for dependency_substring, replaced_dependency_substring in mapping.items():
+                if analysis.import_aliases_available == False:
+                    analysis.import_aliases_available = True
+                analysis.import_aliases[dependency_substring] = replaced_dependency_substring
 
-        # check if the analysis should only consider specified files
-        if ConfigKeyAnalysis.ONLY_PERMIT_FILES_MATCHING_ABSOLUTE_PATH.name.lower() in analysis_dict:
-            if type(analysis_dict[ConfigKeyAnalysis.ONLY_PERMIT_FILES_MATCHING_ABSOLUTE_PATH.name.lower()]) == list:
-                for file in analysis_dict[ConfigKeyAnalysis.ONLY_PERMIT_FILES_MATCHING_ABSOLUTE_PATH.name.lower()]:
-                    if analysis.only_permit_files_matching_absolute_path_available == False:
-                        analysis.only_permit_files_matching_absolute_path_available = True
-                    analysis.only_permit_files_matching_absolute_path.append(file)
-            else:
-                raise Exception(f'❗️{ConfigKeyAnalysis.ONLY_PERMIT_FILES_MATCHING_ABSOLUTE_PATH.name.lower()} '
-                                    f'must be a list of strings.')
+    # check if the analysis should only consider specified files
+    if ConfigKeyAnalysis.ONLY_PERMIT_FILES_MATCHING_ABSOLUTE_PATH.name.lower() in analysis_dict:
+        if type(analysis_dict[ConfigKeyAnalysis.ONLY_PERMIT_FILES_MATCHING_ABSOLUTE_PATH.name.lower()]) == list:
+            for file in analysis_dict[ConfigKeyAnalysis.ONLY_PERMIT_FILES_MATCHING_ABSOLUTE_PATH.name.lower()]:
+                if analysis.only_permit_files_matching_absolute_path_available == False:
+                    analysis.only_permit_files_matching_absolute_path_available = True
+                analysis.only_permit_files_matching_absolute_path.append(file)
+        else:
+            raise Exception(f'❗️{ConfigKeyAnalysis.ONLY_PERMIT_FILES_MATCHING_ABSOLUTE_PATH.name.lower()} '
+                                f'must be a list of strings.')
 
-        # load metrics from analysis
-        if ConfigKeyAnalysis.FILE_SCAN.name.lower() in analysis_dict:
-            # add all configured file_scan metrics
-            for configured_metric in analysis_dict[ConfigKeyAnalysis.FILE_SCAN.name.lower()]:
+    # load metrics from analysis
+    if ConfigKeyAnalysis.FILE_SCAN.name.lower() in analysis_dict:
+        # add all configured file_scan metrics
+        for configured_metric in analysis_dict[ConfigKeyAnalysis.FILE_SCAN.name.lower()]:
 
-                # necessary indicator what graph representations are relevant for graph based metrics
-                if configured_metric == ConfigKeyFileScan.DEPENDENCY_GRAPH.name.lower():
-                    analysis.create_graph_representation(GraphType.FILE_RESULT_DEPENDENCY_GRAPH)
+            # necessary indicator what graph representations are relevant for graph based metrics
+            if configured_metric == ConfigKeyFileScan.DEPENDENCY_GRAPH.name.lower():
+                analysis.create_graph_representation(GraphType.FILE_RESULT_DEPENDENCY_GRAPH)
 
-                # number of methods
-                if configured_metric == ConfigKeyFileScan.NUMBER_OF_METHODS.name.lower():
-                    number_of_methods_metric = NumberOfMethodsMetric(analysis)
-                    LOGGER.debug(f'adding {number_of_methods_metric.pretty_metric_name}...')
-                    analysis.metrics_for_file_results.update({
-                        number_of_methods_metric.metric_name: number_of_methods_metric
-                    })
+            # number of methods
+            if configured_metric == ConfigKeyFileScan.NUMBER_OF_METHODS.name.lower():
+                number_of_methods_metric = NumberOfMethodsMetric(analysis)
+                LOGGER.debug(f'adding {number_of_methods_metric.pretty_metric_name}...')
+                analysis.metrics_for_file_results.update({
+                    number_of_methods_metric.metric_name: number_of_methods_metric
+                })
 
-                # source lines of code
-                if configured_metric == ConfigKeyFileScan.SOURCE_LINES_OF_CODE.name.lower():
-                    source_lines_of_code_metric = SourceLinesOfCodeMetric(analysis)
-                    LOGGER.debug(f'adding {source_lines_of_code_metric.pretty_metric_name}...')
-                    analysis.metrics_for_file_results.update({
-                        source_lines_of_code_metric.metric_name: source_lines_of_code_metric
-                    })
+            # source lines of code
+            if configured_metric == ConfigKeyFileScan.SOURCE_LINES_OF_CODE.name.lower():
+                source_lines_of_code_metric = SourceLinesOfCodeMetric(analysis)
+                LOGGER.debug(f'adding {source_lines_of_code_metric.pretty_metric_name}...')
+                analysis.metrics_for_file_results.update({
+                    source_lines_of_code_metric.metric_name: source_lines_of_code_metric
+                })
 
-                # fan-in, fan-out
-                if ConfigKeyFileScan.FAN_IN_OUT.name.lower() in configured_metric:
-                    LOGGER.debug(f'adding {FanInOutMetric.pretty_metric_name}...')
-                    graph_representations = analysis.existing_graph_representations
-                    fan_in_out_metric = FanInOutMetric(analysis, graph_representations)
-                    analysis.metrics_for_file_results.update({
-                        fan_in_out_metric.metric_name: fan_in_out_metric
-                    })
+            # fan-in, fan-out
+            if ConfigKeyFileScan.FAN_IN_OUT.name.lower() in configured_metric:
+                LOGGER.debug(f'adding {FanInOutMetric.pretty_metric_name}...')
+                graph_representations = analysis.existing_graph_representations
+                fan_in_out_metric = FanInOutMetric(analysis, graph_representations)
+                analysis.metrics_for_file_results.update({
+                    fan_in_out_metric.metric_name: fan_in_out_metric
+                })
 
-                # louvain-modularity
-                if ConfigKeyFileScan.LOUVAIN_MODULARITY.name.lower() in configured_metric:
-                    LOGGER.debug(f'adding {LouvainModularityMetric.pretty_metric_name}...')
-                    graph_representations = analysis.existing_graph_representations
-                    louvain_modularity_metric = LouvainModularityMetric(analysis, graph_representations)
-                    analysis.metrics_for_file_results.update({
-                        louvain_modularity_metric.metric_name: louvain_modularity_metric
-                    })
+            # louvain-modularity
+            if ConfigKeyFileScan.LOUVAIN_MODULARITY.name.lower() in configured_metric:
+                LOGGER.debug(f'adding {LouvainModularityMetric.pretty_metric_name}...')
+                graph_representations = analysis.existing_graph_representations
+                louvain_modularity_metric = LouvainModularityMetric(analysis, graph_representations)
+                analysis.metrics_for_file_results.update({
+                    louvain_modularity_metric.metric_name: louvain_modularity_metric
+                })
+
+            # tfidf
+            if ConfigKeyFileScan.TFIDF.name.lower() in configured_metric:
+                LOGGER.debug(f'adding {TFIDFMetric.pretty_metric_name}...')
+                graph_representations = analysis.existing_graph_representations
+                tfidf_metric = TFIDFMetric(analysis)
+                analysis.metrics_for_file_results.update({
+                    tfidf_metric.metric_name: tfidf_metric
+                })
+            
+            # SNA
+            if ConfigKeyFileScan.SNA.name.lower() in configured_metric:
+                LOGGER.debug(f'adding {SocialNetworkMetric.pretty_metric_name}...')
+                graph_representations = analysis.existing_graph_representations
+                sna_metric = SocialNetworkMetric(analysis, graph_representations)
+                analysis.metrics_for_file_results.update({
+                    sna_metric.metric_name: sna_metric
+                })
+            # TODO: add more metrics
+
+    if ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis_dict:
+        for configured_metric in analysis_dict[ConfigKeyAnalysis.ENTITY_SCAN.name.lower()]:
+            # necessary indicator what graph representations are relevant for graph based metrics
+            if configured_metric == ConfigKeyEntityScan.DEPENDENCY_GRAPH.name.lower():
+                analysis.create_graph_representation(GraphType.ENTITY_RESULT_DEPENDENCY_GRAPH)
+
+            if configured_metric == ConfigKeyEntityScan.INHERITANCE_GRAPH.name.lower():
+                analysis.create_graph_representation(GraphType.ENTITY_RESULT_INHERITANCE_GRAPH)
+
+            # TODO: check if dependency/inheritance exist
+            if configured_metric == ConfigKeyEntityScan.COMPLETE_GRAPH.name.lower():
+                analysis.create_graph_representation(GraphType.ENTITY_RESULT_COMPLETE_GRAPH)
+
+            # number of methods
+            if configured_metric == ConfigKeyEntityScan.NUMBER_OF_METHODS.name.lower():
+                LOGGER.debug(f'adding {NumberOfMethodsMetric.pretty_metric_name}...')
+                number_of_methods_metric = NumberOfMethodsMetric(analysis)
+
+                analysis.metrics_for_entity_results.update({
+                    number_of_methods_metric.metric_name: number_of_methods_metric
+                })
+
+            # source lines of code
+            if configured_metric == ConfigKeyEntityScan.SOURCE_LINES_OF_CODE.name.lower():
+                LOGGER.debug(f'adding {SourceLinesOfCodeMetric.pretty_metric_name}...')
+                source_lines_of_code_metric = SourceLinesOfCodeMetric(analysis)
+                analysis.metrics_for_entity_results.update({
+                    source_lines_of_code_metric.metric_name: source_lines_of_code_metric
+                })
+
+            # fan-in, fan-out
+            if ConfigKeyEntityScan.FAN_IN_OUT.name.lower() in configured_metric:
+                LOGGER.debug(f'adding {FanInOutMetric.pretty_metric_name}...')
+                graph_representations = analysis.existing_graph_representations
+                fan_in_out_metric = FanInOutMetric(analysis, graph_representations)
+
+                analysis.metrics_for_entity_results.update({
+                    fan_in_out_metric.metric_name: fan_in_out_metric
+                })
+
+            # louvain-modularity
+            if ConfigKeyEntityScan.LOUVAIN_MODULARITY.name.lower() in configured_metric:
+                LOGGER.debug(f'adding {LouvainModularityMetric.pretty_metric_name}...')
+                graph_representations = analysis.existing_graph_representations
+                louvain_modularity_metric = LouvainModularityMetric(analysis, graph_representations)
+
+                analysis.metrics_for_entity_results.update({
+                    louvain_modularity_metric.metric_name: louvain_modularity_metric
+                })
 
                 # tfidf
-                if ConfigKeyFileScan.TFIDF.name.lower() in configured_metric:
-                    LOGGER.debug(f'adding {TFIDFMetric.pretty_metric_name}...')
-                    graph_representations = analysis.existing_graph_representations
-                    tfidf_metric = TFIDFMetric(analysis)
-                    analysis.metrics_for_file_results.update({
-                        tfidf_metric.metric_name: tfidf_metric
-                    })
-                
-                # SNA
-                if ConfigKeyFileScan.SNA.name.lower() in configured_metric:
-                    LOGGER.debug(f'adding {SocialNetworkMetric.pretty_metric_name}...')
-                    graph_representations = analysis.existing_graph_representations
-                    sna_metric = SocialNetworkMetric(analysis, graph_representations)
-                    analysis.metrics_for_file_results.update({
-                        sna_metric.metric_name: sna_metric
-                    })
-                # TODO: add more metrics
+            if ConfigKeyEntityScan.TFIDF.name.lower() in configured_metric:
+                LOGGER.debug(f'adding {TFIDFMetric.pretty_metric_name}...')
+                graph_representations = analysis.existing_graph_representations
+                tfidf_metric = TFIDFMetric(analysis)
+                analysis.metrics_for_entity_results.update({
+                    tfidf_metric.metric_name: tfidf_metric
+                })
 
-        if ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis_dict:
-            for configured_metric in analysis_dict[ConfigKeyAnalysis.ENTITY_SCAN.name.lower()]:
-                # necessary indicator what graph representations are relevant for graph based metrics
-                if configured_metric == ConfigKeyEntityScan.DEPENDENCY_GRAPH.name.lower():
-                    analysis.create_graph_representation(GraphType.ENTITY_RESULT_DEPENDENCY_GRAPH)
+            # TODO: add more metrics
 
-                if configured_metric == ConfigKeyEntityScan.INHERITANCE_GRAPH.name.lower():
-                    analysis.create_graph_representation(GraphType.ENTITY_RESULT_INHERITANCE_GRAPH)
+    if ConfigKeyAnalysis.FILE_SCAN.name.lower() in analysis_dict:
+        analysis.scan_types.append(ConfigKeyAnalysis.FILE_SCAN.name.lower())
 
-                # TODO: check if dependency/inheritance exist
-                if configured_metric == ConfigKeyEntityScan.COMPLETE_GRAPH.name.lower():
-                    analysis.create_graph_representation(GraphType.ENTITY_RESULT_COMPLETE_GRAPH)
+    if ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis_dict:
+        analysis.scan_types.append(ConfigKeyAnalysis.ENTITY_SCAN.name.lower())
 
-                # number of methods
-                if configured_metric == ConfigKeyEntityScan.NUMBER_OF_METHODS.name.lower():
-                    LOGGER.debug(f'adding {NumberOfMethodsMetric.pretty_metric_name}...')
-                    number_of_methods_metric = NumberOfMethodsMetric(analysis)
+    analysis.analysis_name = analysis_dict[ConfigKeyAnalysis.ANALYSIS_NAME.name.lower()]
+    analysis.project_name = analysis_dict[ConfigKeyAnalysis.PROJECT_NAME.name.lower()]
+    analysis.source_directory = analysis_dict[ConfigKeyAnalysis.SOURCE_DIRECTORY.name.lower()]
+    print("++++++++++++"+analysis_dict[ConfigKeyAnalysis.SOURCE_DIRECTORY.name.lower()])
+    # TODO: check for other optional keys/values and assign
 
-                    analysis.metrics_for_entity_results.update({
-                        number_of_methods_metric.metric_name: number_of_methods_metric
-                    })
-
-                # source lines of code
-                if configured_metric == ConfigKeyEntityScan.SOURCE_LINES_OF_CODE.name.lower():
-                    LOGGER.debug(f'adding {SourceLinesOfCodeMetric.pretty_metric_name}...')
-                    source_lines_of_code_metric = SourceLinesOfCodeMetric(analysis)
-                    analysis.metrics_for_entity_results.update({
-                        source_lines_of_code_metric.metric_name: source_lines_of_code_metric
-                    })
-
-                # fan-in, fan-out
-                if ConfigKeyEntityScan.FAN_IN_OUT.name.lower() in configured_metric:
-                    LOGGER.debug(f'adding {FanInOutMetric.pretty_metric_name}...')
-                    graph_representations = analysis.existing_graph_representations
-                    fan_in_out_metric = FanInOutMetric(analysis, graph_representations)
-
-                    analysis.metrics_for_entity_results.update({
-                        fan_in_out_metric.metric_name: fan_in_out_metric
-                    })
-
-                # louvain-modularity
-                if ConfigKeyEntityScan.LOUVAIN_MODULARITY.name.lower() in configured_metric:
-                    LOGGER.debug(f'adding {LouvainModularityMetric.pretty_metric_name}...')
-                    graph_representations = analysis.existing_graph_representations
-                    louvain_modularity_metric = LouvainModularityMetric(analysis, graph_representations)
-
-                    analysis.metrics_for_entity_results.update({
-                        louvain_modularity_metric.metric_name: louvain_modularity_metric
-                    })
-
-                    # tfidf
-                if ConfigKeyEntityScan.TFIDF.name.lower() in configured_metric:
-                    LOGGER.debug(f'adding {TFIDFMetric.pretty_metric_name}...')
-                    graph_representations = analysis.existing_graph_representations
-                    tfidf_metric = TFIDFMetric(analysis)
-                    analysis.metrics_for_entity_results.update({
-                        tfidf_metric.metric_name: tfidf_metric
-                    })
-
-                # TODO: add more metrics
-
-        if ConfigKeyAnalysis.FILE_SCAN.name.lower() in analysis_dict:
-            analysis.scan_types.append(ConfigKeyAnalysis.FILE_SCAN.name.lower())
-
-        if ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis_dict:
-            analysis.scan_types.append(ConfigKeyAnalysis.ENTITY_SCAN.name.lower())
-
-        analysis.analysis_name = analysis_dict[ConfigKeyAnalysis.ANALYSIS_NAME.name.lower()]
-        analysis.project_name = analysis_dict[ConfigKeyAnalysis.PROJECT_NAME.name.lower()]
-        analysis.source_directory = analysis_dict[ConfigKeyAnalysis.SOURCE_DIRECTORY.name.lower()]
-
-        # TODO: check for other optional keys/values and assign
-
-        if ConfigKeyAnalysis.ONLY_PERMIT_LANGUAGES.name.lower() in analysis_dict:
-            analysis.only_permit_languages = analysis_dict[ConfigKeyAnalysis.ONLY_PERMIT_LANGUAGES.name.lower()]
-        if ConfigKeyAnalysis.ONLY_PERMIT_FILE_EXTENSIONS.name.lower() in analysis_dict:
-            analysis.only_permit_file_extensions = analysis_dict[ConfigKeyAnalysis.ONLY_PERMIT_FILE_EXTENSIONS.name.lower()]
+    if ConfigKeyAnalysis.ONLY_PERMIT_LANGUAGES.name.lower() in analysis_dict:
+        analysis.only_permit_languages = analysis_dict[ConfigKeyAnalysis.ONLY_PERMIT_LANGUAGES.name.lower()]
+    if ConfigKeyAnalysis.ONLY_PERMIT_FILE_EXTENSIONS.name.lower() in analysis_dict:
+        analysis.only_permit_file_extensions = analysis_dict[ConfigKeyAnalysis.ONLY_PERMIT_FILE_EXTENSIONS.name.lower()]
 
 
 if __name__ == '__main__':
-    graphGenerator=GraphGenerator()
-    sys.argv.pop(0)
-    print(sys.argv)
-    argv=sys.argv
-    graphGenerator.main(argv)
+    # graphGenerator=GraphGenerator()
+    # sys.argv.pop(0)
+    # print(sys.argv)
+    # argv=sys.argv
+    # graphGenerator.main(argv)
+    from calculate.metrics.javaCodeMetric import test
+    source_directory=r"D:\idea_workspace\Analyser4J"
+    out_dir=r"D:\temp\out\1"
+    test(source_directory,out_dir)
+    
