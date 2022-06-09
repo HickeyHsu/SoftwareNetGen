@@ -1,16 +1,17 @@
-wheel
 autopep8
-coloredlogs
+wheel
 interrogate
+coloredlogs
 networkx
+pandas
+prettytable
+python-louvain
+setuptools
 sklearn
 numpy
-prettytable
 py
 pycodestyle
-# pygraphviz
-pylint
 pyparsing
-python-louvain
 PyYAML
 tabulate
+pylint
