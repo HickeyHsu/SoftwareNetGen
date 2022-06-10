@@ -75,19 +75,25 @@ class SocialNetworkMetric(GraphMetric):
             digraph: DiGraph = graph_instance.digraph
             mlMetric=LocalMetrics(digraph)
             nodesIDs=digraph.nodes()
-            #TODO 多进程
-            pool = Pool(processes=6)
-            q=Manager().Queue()
-            jobs=[] #线程储存
-            for m in self.__metrics:
-                # self.result[m]=mlMetric.calMetric(m,nodesIDs)
-                job=pool.apply_async(func=self.task, args=(q,mlMetric,m,nodesIDs,))
-                jobs.append(job)
-            pool.close()
-            pool.join()
-            mpResults = [q.get() for j in jobs] 
-            for r in mpResults:
-                self.result[r[0]]=r[1]
+            # 多进程
+            cpu=cpu_count()
+            if cpu<16:
+                LOGGER.info(f"本机使用{cpu}核CPU，核数小于16,不启用多进程提取SNA指标")
+                for m in self.__metrics:
+                    self.result[m]=mlMetric.calMetric(m,nodesIDs)
+            else:
+                LOGGER.info(f"本机使用{cpu}核CPU，启用{cpu-2}进程提取SNA指标")
+                pool = Pool(processes=cpu_count()-2)
+                q=Manager().Queue()
+                jobs=[] #线程储存
+                for m in self.__metrics:
+                    job=pool.apply_async(func=self.task, args=(q,mlMetric,m,nodesIDs,))
+                    jobs.append(job)
+                pool.close()
+                pool.join()
+                mpResults = [q.get() for j in jobs] 
+                for r in mpResults:
+                    self.result[r[0]]=r[1]
             nodeValues=self.result
             for node_with_unique_result_name in nodesIDs:
                 nodeID=node_with_unique_result_name
@@ -128,6 +134,7 @@ class SocialNetworkMetric(GraphMetric):
                 else:
                     self.local_data[node_with_unique_result_name] = data
     def task(self,q,mlMetric:LocalMetrics,m,nodesIDs):
+        LOGGER.info_start(f"calculating SNA-{m}")
         q.put((m,mlMetric.calMetric(m,nodesIDs),))
 if __name__ == '__main__':
     metrics='degree,in_degree,out_degree,betweenness,katz_centrality,pagerank,eigenvector_centrality,average_neighbor_degree,clustering_coefficient,square_clustering,closeness_centrality,degree_centrality,out_degree_centrality,in_degree_centrality,betweenness_centrality,load_centrality,number_of_cliques,core_number,number_ancestors,number_descendants,eccentricity,ripple_degree,inneredge_count,out_edge_count,in_variable_edge_count,strength,reverse_ripple'

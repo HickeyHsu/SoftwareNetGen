@@ -2,6 +2,12 @@
 本项目基于glato/emerge项目进行二次开发，主要目标是实现面向缺陷预测的软件网络模型和特征提取。
 
 ## some thing
+### mutiprocessing
+对SNA计算引入mp，camel2.10.0总时间为：00:11:20
+原生计算，camel2.10.0总时间为：00:16:44 + 257 ms
+
+
+### setting
 原项目emerge只在linux和mac上进行验证。
 在Windows系统部署时，需要为项目中的posixPath添加支持。方法如下：
 修改所使用环境下的`lib/pathlib.py`代码（约1000行）
