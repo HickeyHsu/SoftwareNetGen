@@ -9,7 +9,7 @@ from typing import Dict, Any
 from enum import auto
 import logging
 import coloredlogs
-
+from multiprocessing import Pool,Manager,cpu_count
 from networkx import DiGraph
 from calculate.localMetrics import LocalMetrics
 
@@ -76,8 +76,18 @@ class SocialNetworkMetric(GraphMetric):
             mlMetric=LocalMetrics(digraph)
             nodesIDs=digraph.nodes()
             #TODO 多进程
+            pool = Pool(processes=6)
+            q=Manager().Queue()
+            jobs=[] #线程储存
             for m in self.__metrics:
-                self.result[m]=mlMetric.calMetric(m,nodesIDs)
+                # self.result[m]=mlMetric.calMetric(m,nodesIDs)
+                job=pool.apply_async(func=self.task, args=(q,mlMetric,m,nodesIDs,))
+                jobs.append(job)
+            pool.close()
+            pool.join()
+            mpResults = [q.get() for j in jobs] 
+            for r in mpResults:
+                self.result[r[0]]=r[1]
             nodeValues=self.result
             for node_with_unique_result_name in nodesIDs:
                 nodeID=node_with_unique_result_name
@@ -117,7 +127,8 @@ class SocialNetworkMetric(GraphMetric):
                     self.local_data[node_with_unique_result_name].update(data)
                 else:
                     self.local_data[node_with_unique_result_name] = data
-                
+    def task(self,q,mlMetric:LocalMetrics,m,nodesIDs):
+        q.put((m,mlMetric.calMetric(m,nodesIDs),))
 if __name__ == '__main__':
     metrics='degree,in_degree,out_degree,betweenness,katz_centrality,pagerank,eigenvector_centrality,average_neighbor_degree,clustering_coefficient,square_clustering,closeness_centrality,degree_centrality,out_degree_centrality,in_degree_centrality,betweenness_centrality,load_centrality,number_of_cliques,core_number,number_ancestors,number_descendants,eccentricity,ripple_degree,inneredge_count,out_edge_count,in_variable_edge_count,strength,reverse_ripple'
     metrics=metrics.split(",")

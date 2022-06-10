@@ -230,11 +230,15 @@ class GraphGenerator(Analyzer):
         analysis = Analysis()
         configAnalysis(analysis,config)
         analysis.start_timer()
+        start_time = datetime.now()
         analysis=self.start_scanning(analysis)
         if self.excludeExLib: analysis.clear_external()
-        if self.file_inheritance: analysis.merge_file_inheritance()        
+        if self.file_inheritance: analysis.merge_file_inheritance()
+        dur_time = format_timedelta(datetime.now()-start_time, '%H:%M:%S + %s ms')        
         analysis.export()
         analysis.stop_timer()
+        
+        LOGGER.info_done(f"finished in time: {dur_time}")
         analysis.statistics.add(key=Statistics.Key.ANALYSIS_RUNTIME, value=analysis.duration())
         self._clear_all_parsers()
         
@@ -488,7 +492,6 @@ def configAnalysis(analysis: Analysis,analysis_dict:dict):
     analysis.analysis_name = analysis_dict[ConfigKeyAnalysis.ANALYSIS_NAME.name.lower()]
     analysis.project_name = analysis_dict[ConfigKeyAnalysis.PROJECT_NAME.name.lower()]
     analysis.source_directory = analysis_dict[ConfigKeyAnalysis.SOURCE_DIRECTORY.name.lower()]
-    print("++++++++++++"+analysis_dict[ConfigKeyAnalysis.SOURCE_DIRECTORY.name.lower()])
     # TODO: check for other optional keys/values and assign
 
     if ConfigKeyAnalysis.ONLY_PERMIT_LANGUAGES.name.lower() in analysis_dict:
