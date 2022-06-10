@@ -5,6 +5,7 @@ Contains an implementation of the louvain modularity graph metric.
 # Authors: Grzegorz Lato <grzegorz.lato@gmail.com>
 # License: MIT
 
+from datetime import datetime
 from typing import Dict, Any
 from enum import auto
 import logging
@@ -14,9 +15,9 @@ from networkx import DiGraph
 from calculate.localMetrics import LocalMetrics
 
 from emerge.abstractresult import AbstractResult
-from emerge.results import FileResult, EntityResult
 from emerge.log import Logger
-from emerge.graph import GraphRepresentation, GraphType
+from emerge.graph import GraphRepresentation
+from emerge.core import format_timedelta
 
 # enums and superclass of the given metric
 from emerge.metrics.abstractmetric import EnumLowerKebabCase
@@ -50,18 +51,38 @@ class SocialNetworkMetric(GraphMetric):
         SNA_NUMBER_DESCENDANTS_DEPENDENCY_GRAPH = auto()
         SNA_ECCENTRICITY_DEPENDENCY_GRAPH = auto()
         SNA_RIPPLE_DEGREE_DEPENDENCY_GRAPH = auto()
-        SNA_INNEREDGE_COUNT_DEPENDENCY_GRAPH = auto()
-        SNA_OUT_EDGE_COUNT_DEPENDENCY_GRAPH = auto()
-        SNA_IN_VARIABLE_EDGE_COUNT_DEPENDENCY_GRAPH = auto()
+        # SNA_INNEREDGE_COUNT_DEPENDENCY_GRAPH = auto()
+        # SNA_OUT_EDGE_COUNT_DEPENDENCY_GRAPH = auto()
+        # SNA_IN_VARIABLE_EDGE_COUNT_DEPENDENCY_GRAPH = auto()
         SNA_REVERSE_RIPPLE_DEPENDENCY_GRAPH = auto()    
         SNA_ABS_PATH = auto()  
     def __init__(self, analysis, graph_representations: Dict):
         super().__init__(analysis, graph_representations)
-        self.__metrics=['degree', 'in_degree', 'out_degree', 'betweenness', 'katz_centrality', 'pagerank', 'eigenvector_centrality', 
-            'average_neighbor_degree', 'clustering_coefficient', 'square_clustering', 'closeness_centrality', 
+        # self.__metrics=['degree', 'in_degree', 'out_degree', 'betweenness',
+        #      'katz_centrality', 'pagerank', 'eigenvector_centrality', 
+        #     'average_neighbor_degree', 'clustering_coefficient',
+        #     'square_clustering', 'closeness_centrality', 
+        #     'degree_centrality', 'out_degree_centrality', 'in_degree_centrality', 
+        #     'betweenness_centrality', 'load_centrality', 
+        #     'number_of_cliques', 'core_number', 'number_ancestors', 'number_descendants', 
+        #     'eccentricity', 'ripple_degree',
+        #     # 'inneredge_count', 'out_edge_count', 'in_variable_edge_count',
+        #     'reverse_ripple'
+        # ]
+
+        #重新排列计算顺序，使耗时长的先计算以充分利用cpu资源
+        self.__metrics=['betweenness','betweenness_centrality','square_clustering',
+            'reverse_ripple','number_of_cliques','katz_centrality',
+            'degree', 'in_degree', 'out_degree', 
+            'pagerank', 'eigenvector_centrality', 
+            'average_neighbor_degree', 'clustering_coefficient',
+            'closeness_centrality', 
             'degree_centrality', 'out_degree_centrality', 'in_degree_centrality', 
-            'betweenness_centrality', 'load_centrality', 'number_of_cliques', 'core_number', 'number_ancestors', 'number_descendants', 'eccentricity', 
-            'ripple_degree', 'inneredge_count', 'out_edge_count', 'in_variable_edge_count', 'reverse_ripple'
+            'load_centrality', 
+            'core_number', 'number_ancestors', 'number_descendants', 
+            'eccentricity', 'ripple_degree',
+            # 'inneredge_count', 'out_edge_count', 'in_variable_edge_count',
+            
         ]
         self.result={}
 
@@ -123,9 +144,9 @@ class SocialNetworkMetric(GraphMetric):
                     self.Keys.SNA_NUMBER_DESCENDANTS_DEPENDENCY_GRAPH.value: nodeValues["number_descendants"][nodeID],
                     self.Keys.SNA_ECCENTRICITY_DEPENDENCY_GRAPH.value: nodeValues["eccentricity"][nodeID],
                     self.Keys.SNA_RIPPLE_DEGREE_DEPENDENCY_GRAPH.value: nodeValues["ripple_degree"][nodeID],
-                    self.Keys.SNA_INNEREDGE_COUNT_DEPENDENCY_GRAPH.value: nodeValues["inneredge_count"][nodeID],
-                    self.Keys.SNA_OUT_EDGE_COUNT_DEPENDENCY_GRAPH.value: nodeValues["out_edge_count"][nodeID],
-                    self.Keys.SNA_IN_VARIABLE_EDGE_COUNT_DEPENDENCY_GRAPH.value: nodeValues["in_variable_edge_count"][nodeID],
+                    # self.Keys.SNA_INNEREDGE_COUNT_DEPENDENCY_GRAPH.value: nodeValues["inneredge_count"][nodeID],
+                    # self.Keys.SNA_OUT_EDGE_COUNT_DEPENDENCY_GRAPH.value: nodeValues["out_edge_count"][nodeID],
+                    # self.Keys.SNA_IN_VARIABLE_EDGE_COUNT_DEPENDENCY_GRAPH.value: nodeValues["in_variable_edge_count"][nodeID],
                     self.Keys.SNA_REVERSE_RIPPLE_DEPENDENCY_GRAPH.value: nodeValues["reverse_ripple"][nodeID]
                 }
                 
@@ -134,8 +155,10 @@ class SocialNetworkMetric(GraphMetric):
                 else:
                     self.local_data[node_with_unique_result_name] = data
     def task(self,q,mlMetric:LocalMetrics,m,nodesIDs):
-        LOGGER.info_start(f"calculating SNA-{m}")
+        start_time = datetime.now()
         q.put((m,mlMetric.calMetric(m,nodesIDs),))
+        dur_time = format_timedelta(datetime.now()-start_time, '%H:%M:%S + %s ms')
+        LOGGER.info_done(f"calculate {m} finished in time: {dur_time}")
 if __name__ == '__main__':
     metrics='degree,in_degree,out_degree,betweenness,katz_centrality,pagerank,eigenvector_centrality,average_neighbor_degree,clustering_coefficient,square_clustering,closeness_centrality,degree_centrality,out_degree_centrality,in_degree_centrality,betweenness_centrality,load_centrality,number_of_cliques,core_number,number_ancestors,number_descendants,eccentricity,ripple_degree,inneredge_count,out_edge_count,in_variable_edge_count,strength,reverse_ripple'
     metrics=metrics.split(",")
