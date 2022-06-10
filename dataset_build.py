@@ -149,11 +149,11 @@ class DatasetBuilder:
         # local_metric_df[CK_METRICS]=ck_data[CK_METRICS]
         # org.apache.activemq.perf.Producer
 if __name__ == '__main__':
-    data_directory=r"D:\data_sci\dataset_jira"
-    project_name="activemq"
-    version="5.0.0"
+    data_directory=r"/home/hickey/data/dataset_jira"
+    project_name="camel"
+    # version="5.0.0"
     language="java"
-    versions=["5.0.0","5.1.0","5.2.0","5.3.0","5.8.0"]
+    versions=['1.4.0', '2.10.0', '2.11.0', '2.9.0']
     datasetBuilder =DatasetBuilder(data_directory,project_name,language)
     # datasetBuilder.mergeMetrics(version,mergeCK=True,mergeBug=True,extractSNA=True,extractCK=True)
     # datasetBuilder.mergeMetrics(version,mergeCK=True,mergeBug=True,extractSNA=False,extractCK=False)

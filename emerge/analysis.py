@@ -427,7 +427,8 @@ class Analysis:
         # create a root directory filesystem node, add to project graph
 
         parent_analysis_source_path = f"{PosixPath(self.source_directory).parent}/"
-        relative_file_path_to_analysis = self.source_directory.replace(parent_analysis_source_path, "")
+        # relative_file_path_to_analysis = self.source_directory.replace(parent_analysis_source_path, "")
+        relative_file_path_to_analysis = self.source_directory# 不replace，获得真`绝对路径`
 
         filesystem_root_node = FileSystemNode(FileSystemNodeType.DIRECTORY, relative_file_path_to_analysis)
         filesystem_graph.filesystem_nodes[filesystem_root_node.absolute_name] = filesystem_root_node
@@ -451,9 +452,10 @@ class Analysis:
                 # create relative analysis paths to exactly match the same path of nodes in other graphs (and get their metrics)
                 parent_analysis_source_path = f"{PosixPath(absolute_path_to_directory).parent}/"
                 relative_file_path_to_analysis = absolute_path_to_directory.replace(parent_analysis_source_path, "")
-                relative_path_parent = f'{PosixPath(root)}'.replace(f'{ PosixPath(self.source_directory).parent}/', "")
-                relative_path_directoy_node = f'{PosixPath(root)}/{relative_file_path_to_analysis}'.replace(f"{PosixPath(self.source_directory).parent}/", "")
-
+                # relative_path_parent = f'{PosixPath(root)}'.replace(f'{ PosixPath(self.source_directory).parent}/', "")
+                # relative_path_directoy_node = f'{PosixPath(root)}/{relative_file_path_to_analysis}'.replace(f"{PosixPath(self.source_directory).parent}/", "")
+                relative_path_parent = f'{PosixPath(root)}'# 不replace，获得真`绝对路径`
+                relative_path_directoy_node = f'{PosixPath(root)}/{relative_file_path_to_analysis}'# 不replace，获得真`绝对路径`
                 directory_node = FileSystemNode(FileSystemNodeType.DIRECTORY, relative_path_directoy_node)
                 filesystem_graph.filesystem_nodes[directory_node.absolute_name] = directory_node
 

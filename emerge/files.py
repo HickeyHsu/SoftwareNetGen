@@ -154,3 +154,8 @@ def truncate_directory(directory: str) -> str:
         return '.../' + prefix_truncated
     else:
         return directory
+
+def check_or_create_dir(directory: str):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        LOGGER.info(f"{directory} didn't exist; create now")

@@ -11,6 +11,9 @@ from emerge.config import *
 from emerge.core import format_timedelta
 from emerge.graph import GraphType
 from emerge.stats import Statistics
+from emerge.log import Logger, LogLevel
+import coloredlogs
+
 
 from emerge.languages.abstractparser import AbstractParser
 from emerge.languages.javaparser import JavaParser
@@ -24,7 +27,11 @@ from emerge.languages.kotlinparser import KotlinParser
 from emerge.languages.objcparser import ObjCParser
 from emerge.languages.rubyparser import RubyParser
 from emerge.languages.pyparser import PythonParser
+
 from calculate.tools import local_metrics_to_df
+
+LOGGER = Logger(logging.getLogger('emerge'))
+coloredlogs.install(level='E', logger=LOGGER.logger(), fmt=Logger.log_format)
 
 PARSERS:Dict[str, AbstractParser] = {
     JavaParser.parser_name(): JavaParser(),
@@ -95,7 +102,11 @@ class GraphGenerator(Analyzer):
         self.file_inheritance=False
         self.excludeExLib=False
     def main(self,argv):
-        self.args_parse(argv)
+        try:
+            self.args_parse(argv)
+        except:
+            LOGGER.error("please check your arguments")
+            return
         self.entry()
     def args_parse(self,argv):
         opts,args=getopt.getopt(argv,"s:o:l:p:a:",
@@ -178,6 +189,7 @@ class GraphGenerator(Analyzer):
             analysis.export()
         analysis.stop_timer()
         analysis.statistics.add(key=Statistics.Key.ANALYSIS_RUNTIME, value=analysis.duration())
+        LOGGER.info_done(f'untime of analysis: {analysis.analysis_runtime}')
         self._clear_all_parsers()
         return local_metric_df
 

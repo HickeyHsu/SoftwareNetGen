@@ -75,6 +75,7 @@ class SocialNetworkMetric(GraphMetric):
             digraph: DiGraph = graph_instance.digraph
             mlMetric=LocalMetrics(digraph)
             nodesIDs=digraph.nodes()
+            #TODO 多进程
             for m in self.__metrics:
                 self.result[m]=mlMetric.calMetric(m,nodesIDs)
             nodeValues=self.result

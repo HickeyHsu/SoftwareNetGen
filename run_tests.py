@@ -20,11 +20,13 @@ Discover and run all unit tests.
 # cov = coverage.InterrogateCoverage(paths=["."])
 # results = cov.get_coverage()
 # print(f'\nInterrogate docstring coverage: {(results.covered/results.total) * 100 :.2f}%')
+import sys,json
+from generate import GraphGenerator
 
 if __name__ == '__main__':
-    metrics='degree,in_degree,out_degree,betweenness,katz_centrality,pagerank,eigenvector_centrality,average_neighbor_degree,clustering_coefficient,square_clustering,closeness_centrality,degree_centrality,out_degree_centrality,in_degree_centrality,betweenness_centrality,load_centrality,number_of_cliques,core_number,number_ancestors,number_descendants,eccentricity,ripple_degree,inneredge_count,out_edge_count,in_variable_edge_count,strength,reverse_ripple'
-    metrics=metrics.split(",")
-    m:str
-    for m in metrics:
-        # print("SNA_"+m.upper()+"_DEPENDENCY_GRAPH = auto()")
-        print("self.Keys.SNA_"+m.upper()+"_DEPENDENCY_GRAPH.value: nodeValues[\""+m+"\"][nodeID],")
+    # dataset=json.load(open('/home/hickey/data/dataset_jira/data.json', 'r'))
+    # print(dataset['camel'])
+    
+    # graphGenerator=GraphGenerator()
+    sys.argv.pop(0)
+    print(sys.argv)
