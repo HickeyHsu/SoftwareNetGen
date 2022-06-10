@@ -12,6 +12,7 @@ from emerge.core import format_timedelta
 from emerge.graph import GraphType
 from emerge.stats import Statistics
 from emerge.log import Logger, LogLevel
+from emerge.files import LanguageExtension
 import coloredlogs
 
 
@@ -76,14 +77,14 @@ DEFAULT_CONFIG={
         # (and/or json/tabular_file/tabular_console_overall)
     }
 } 
-SUPPORT_LANG={
-    "java":".java",
-    "c":".c",
-    "cpp":".cpp",
-    "python":".py",
-    "javascript":".js",
-    "kotlin":".kt,.kts",
-}
+# SUPPORT_LANG={
+#     "java":".java",
+#     "c":".c",
+#     "cpp":".cpp",
+#     "python":".py",
+#     "javascript":".js",
+#     "kotlin":".kt,.kts",
+# }
 class GraphGenerator(Analyzer):
     
     def __init__(self,parsers=PARSERS):
@@ -117,7 +118,7 @@ class GraphGenerator(Analyzer):
             if opts=="-o":
                 self.output_directory = arg
             if opts=="-l":
-                self.language = arg
+                self.language = arg.upper()
             if opts=="-p":
                 self.project_name = arg
             if opts=="-a":
@@ -163,10 +164,10 @@ class GraphGenerator(Analyzer):
             config['project_name']="unamed"
         if ignore_dependencies_containing:
             config['ignore_dependencies_containing']=ignore_dependencies_containing.split(',')
-        language=language.split(',')
-        for k,v in SUPPORT_LANG.items():
+        language=language.upper().split(',')
+        for k,v in LanguageExtension.__members__.items():
             if k in language:
-                config["only_permit_file_extensions"].extend(v.split(',')) 
+                config["only_permit_file_extensions"].append(v.value) 
         if export_format:
             config['export']={"directory": output_directory}
             export_format=export_format.split(',')
@@ -215,9 +216,9 @@ class GraphGenerator(Analyzer):
                     config['export'][lformat.name.lower()]=""
 
         language=self.language.split(',')
-        for k,v in SUPPORT_LANG.items():
+        for k,v in LanguageExtension.__members__.items():
             if k in language:
-                config["only_permit_file_extensions"].extend(v.split(','))               
+                config["only_permit_file_extensions"].append(v.value)               
         
         if self.file_scan:
             config['file_scan']=["number_of_methods","source_lines_of_code",
@@ -229,16 +230,12 @@ class GraphGenerator(Analyzer):
 
         analysis = Analysis()
         configAnalysis(analysis,config)
-        analysis.start_timer()
-        start_time = datetime.now()
+        analysis.start_timer()        
         analysis=self.start_scanning(analysis)
         if self.excludeExLib: analysis.clear_external()
         if self.file_inheritance: analysis.merge_file_inheritance()
-        dur_time = format_timedelta(datetime.now()-start_time, '%H:%M:%S + %s ms')        
         analysis.export()
-        analysis.stop_timer()
-        
-        LOGGER.info_done(f"finished in time: {dur_time}")
+        analysis.stop_timer()        
         analysis.statistics.add(key=Statistics.Key.ANALYSIS_RUNTIME, value=analysis.duration())
         self._clear_all_parsers()
         

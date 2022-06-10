@@ -1,6 +1,7 @@
 from hashlib import md5
 import os
 import pandas as pd
+from calculate.tools import LOGGER
 from generate import GraphGenerator
 from calculate.metrics.javaCodeMetric import extractCK
 CK_METRICS=['cbo', 'cboModified', 'wmc',
@@ -51,23 +52,28 @@ class DatasetBuilder:
         # read sna metric
         local_metric_df=pd.read_csv(SNA_path)        
         local_metric_df=local_metric_df[~local_metric_df["sna-abs-path"].isna()]
+        local_metric_df["sna-abs-path"]=local_metric_df["sna-abs-path"].apply(lambda x:x.replace("\\","/"))
         local_metric_df=local_metric_df[local_metric_df['sna-abs-path']!="EXTERNAL"].set_index("sna-abs-path")
         # mergeCK
         if mergeCK:
-            ck_data=self.getCKMetric(version,extractCK)
+            ck_data=self.getCKMetric(version,extractCK)            
             if ck_data is not None:
                 ck_data=ck_data[~ck_data['class'].str.contains("\$")].groupby('file').sum()
+                ck_data.index=ck_data.index.map(lambda x:x.replace("\\","/"))
                 local_metric_df[CK_METRICS]=ck_data[CK_METRICS]
                 for code_metric in CK_METRICS:
                     rename_dict = {code_metric: "code-"+code_metric}
                 local_metric_df=local_metric_df.rename(columns=rename_dict)
-                out_name+="-CK"                
+                out_name+="-CK" 
+            else:
+                LOGGER.warning("ck_data doesn't exist")
         # mergeBug
-        if mergeBug:            
+        if mergeBug:
+            # LOGGER.info_start(f"merge bug data for {self.project_name}-{version}")
             csv_file=os.path.join(self.data_directory,"csv",self.project_name,self.project_name+"-"+version+".csv")
             if os.path.exists(csv_file):
                 csv_data=pd.read_csv(csv_file)
-                csv_data['abs_path']=csv_data["File"].apply(lambda x:os.path.join(source_directory,x).replace("/","\\"))
+                csv_data['abs_path']=csv_data["File"].apply(lambda x:os.path.join(source_directory,x).replace("\\","/"))
                 csv_data=csv_data.set_index('abs_path')
                 local_metric_df['RealBugCount']=csv_data['RealBugCount']
                 out_name+="-label"
@@ -75,7 +81,7 @@ class DatasetBuilder:
                 print(f"ERROR:{csv_file} doesn`t exist!!!")
         out_name+=".csv"
         local_metric_df.to_csv(os.path.join(output_dir,out_name))
-        print("%s generated!!!" % os.path.join(output_dir,out_name))
+        LOGGER.info_done("%s generated!!!" % os.path.join(output_dir,out_name))
     def getCKMetric(self,version,extract=False):        
         source_directory=self.__source_directory(version)
         output_dir=self.__output_dir(version)
@@ -100,12 +106,15 @@ class DatasetBuilder:
     def dataset_build_seq(self,train_versions:list[str],CK=True):
         train_data=self.auto_gen_trainset(train_versions,CK)
 
-    def auto_gen_trainset(self,versions:list[str],CK=True):
+    def auto_gen_trainset(self,versions:list[str],CK=True,force=False):
         datas=[]
         for version in versions:
             output_dir=self.__output_dir(version)
             out_name=self.__out_name(CK)
-            if not os.path.exists(os.path.join(output_dir,out_name)):
+            if force:
+                self.mergeMetrics(version,mergeCK=CK,mergeBug=True,extractSNA=True,extractCK=True)
+            # elif not os.path.exists(os.path.join(output_dir,out_name)):
+            else:
                 extractSNA=False
                 extractCK=False
                 if not os.path.exists(os.path.join(output_dir,"metric.csv")):
@@ -157,6 +166,6 @@ if __name__ == '__main__':
     datasetBuilder =DatasetBuilder(data_directory,project_name,language)
     # datasetBuilder.mergeMetrics(version,mergeCK=True,mergeBug=True,extractSNA=True,extractCK=True)
     # datasetBuilder.mergeMetrics(version,mergeCK=True,mergeBug=True,extractSNA=False,extractCK=False)
-    datasetBuilder.auto_gen_trainset(versions)
+    datasetBuilder.auto_gen_trainset(versions,force=False)
     # datasetBuilder.test(version="5.1.0")
 
