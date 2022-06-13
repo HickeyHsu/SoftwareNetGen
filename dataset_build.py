@@ -124,7 +124,7 @@ class DatasetBuilder:
                 self.mergeMetrics(version,mergeCK=CK,mergeBug=True,extractSNA=extractSNA,extractCK=extractCK)
 
             data=pd.read_csv(os.path.join(output_dir,out_name))
-            data['id']=version+data["node-id"]
+            data['id']=version+"-"+data["node-id"]
             data=data.set_index("id")
             datas.append(data)
         train_data:pd.DataFrame=pd.concat(datas,join="inner",axis=0)
@@ -159,13 +159,28 @@ class DatasetBuilder:
         # org.apache.activemq.perf.Producer
 if __name__ == '__main__':
     data_directory=r"/home/hickey/data/dataset_jira"
-    project_name="camel"
-    # version="5.0.0"
     language="java"
-    versions=['1.4.0', '2.10.0', '2.11.0', '2.9.0']
+    project_name="activemq"
+    versions= ['5.0.0', '5.1.0', '5.2.0', '5.3.0', '5.8.0']
+    # project_name="camel"
+    # versions=['1.4.0', '2.10.0', '2.11.0', '2.9.0']
+    # project_name="derby"
+    # versions=['10.2.1.6', '10.3.1.4', '10.5.1.1']
+    # project_name="groovy"
+    # versions=['1_5_7', '1_6_BETA_1', '1_6_BETA_2']
+    # project_name="hive"
+    # versions=['0.10.0', '0.12.0', '0.9.0']
+    # project_name="hbase"
+    # versions=['0.94.0', '0.95.0', '0.95.2']
+    # project_name="jruby"
+    # versions=['1.1', '1.4.0', '1.5.0', '1.7.0.preview1']
+    # project_name="lucene"
+    # versions=['2.3.0', '2.9.0', '3.0.0', '3.1.0']
+    # project_name="wicket"
+    # versions=['1.3.0-beta2', '1.3.0-incubating-beta-1', '1.5.3']
     datasetBuilder =DatasetBuilder(data_directory,project_name,language)
     # datasetBuilder.mergeMetrics(version,mergeCK=True,mergeBug=True,extractSNA=True,extractCK=True)
     # datasetBuilder.mergeMetrics(version,mergeCK=True,mergeBug=True,extractSNA=False,extractCK=False)
-    datasetBuilder.auto_gen_trainset(versions,force=False)
+    datasetBuilder.auto_gen_trainset(versions,force=True)
     # datasetBuilder.test(version="5.1.0")
 

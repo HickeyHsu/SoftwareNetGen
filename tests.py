@@ -1,3 +1,4 @@
+import os,json
 from generate import GraphGenerator
 def generation():
     graphGenerator=GraphGenerator()
@@ -17,3 +18,7 @@ def generation():
             "sna"
         ]}
     graphGenerator.start_with_config(setting,True,False,False)
+
+def read_content():
+    dataset=json.load(open('/home/hickey/data/dataset_jira/data.json', 'r'))
+    print(dataset)
