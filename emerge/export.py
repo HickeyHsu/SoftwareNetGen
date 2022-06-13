@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 # from logging import Logger
 import json
-
+import re
 import logging
 import coloredlogs
 
@@ -393,8 +393,8 @@ class D3Exporter:
 
             d3_js_string += '\n\n'
 
-        d3_js_string = d3_js_string.replace('-', '_')  # kebab case variable names are evil
-
+        # d3_js_string = d3_js_string.replace('-', '_')  # kebab case variable names are evil
+        d3_js_string = re.sub(r"-(\D)",r"_\1",d3_js_string)
         d3_js_string += "const analysis_name = '" + analysis_name + "'"
 
         target_force_graph_subpath = "/html"

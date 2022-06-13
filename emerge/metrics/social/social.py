@@ -117,12 +117,12 @@ class SocialNetworkMetric(GraphMetric):
                     self.result[r[0]]=r[1]
             nodeValues=self.result
             #针对某些数值特殊处理
-            need_zscore=["betweenness","eigenvector_centrality",'betweenness_centrality',
-            'katz_centrality','closeness_centrality', 
-            'degree_centrality', 'out_degree_centrality', 'in_degree_centrality', 
-            'load_centrality']
-            for column in need_zscore:
-                nodeValues[column]=max_min_dict_values(nodeValues[column].copy())
+            # need_zscore=["betweenness","eigenvector_centrality",'betweenness_centrality',
+            # 'katz_centrality','closeness_centrality', 
+            # 'degree_centrality', 'out_degree_centrality', 'in_degree_centrality', 
+            # 'load_centrality']
+            # for column in need_zscore:
+            #     nodeValues[column]=max_min_dict_values(nodeValues[column].copy())
             
             for node_with_unique_result_name in nodesIDs:
                 nodeID=node_with_unique_result_name
