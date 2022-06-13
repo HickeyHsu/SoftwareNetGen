@@ -2,10 +2,6 @@ import logging
 import os
 from typing import Dict, Any
 import pandas as pd
-
-
-
-
 from emerge.log import Logger
 LOGGER = Logger(logging.getLogger('analysis'))    
 def export_features_json(local_metric_results: Dict[str, Dict[str, Any]],export_directory,project_name,analysis_name:str):
@@ -29,3 +25,12 @@ def local_metrics_to_df(local_metric_results: Dict[str, Dict[str, Any]])->pd.Dat
                 results.append(m)
     df=pd.DataFrame(results).set_index("node-id")
     return df
+
+def max_min_dict_values(orig_dict:dict):
+    df=pd.DataFrame.from_dict(orig_dict,orient="index",columns=['ori'])
+    df['normalized']=(df['ori']-df['ori'].min())/(df['ori'].max()-df['ori'].min())
+    res=df['normalized'].to_dict()
+    return res
+if __name__ == '__main__':
+    page_score = {'andrew.lewis': 0.672, 'jack.redmond': 0.437,'geoff.storey': 0.276}
+    max_min_dict_values(page_score)

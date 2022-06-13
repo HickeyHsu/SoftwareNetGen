@@ -13,7 +13,7 @@ import coloredlogs
 from multiprocessing import Pool,Manager,cpu_count
 from networkx import DiGraph
 from calculate.localMetrics import LocalMetrics
-
+from calculate.tools import max_min_dict_values
 from emerge.abstractresult import AbstractResult
 from emerge.log import Logger
 from emerge.graph import GraphRepresentation
@@ -108,7 +108,7 @@ class SocialNetworkMetric(GraphMetric):
                 q=Manager().Queue()
                 jobs=[] #线程储存
                 for m in self.__metrics:
-                    job=pool.apply_async(func=self.task, args=(q,mlMetric,m,nodesIDs,))
+                    job=pool.apply_async(func=self.task, args=(q,mlMetric,m,))
                     jobs.append(job)
                 pool.close()
                 pool.join()
@@ -116,6 +116,10 @@ class SocialNetworkMetric(GraphMetric):
                 for r in mpResults:
                     self.result[r[0]]=r[1]
             nodeValues=self.result
+            #针对某些数值特殊处理
+            eigenvector_centrality=nodeValues["eigenvector_centrality"].copy()
+            nodeValues["eigenvector_centrality"]=max_min_dict_values(eigenvector_centrality)
+            
             for node_with_unique_result_name in nodesIDs:
                 nodeID=node_with_unique_result_name
                 if "absolute_name" not in nodesIDs[nodeID]:
@@ -128,7 +132,8 @@ class SocialNetworkMetric(GraphMetric):
                     self.Keys.SNA_BETWEENNESS_DEPENDENCY_GRAPH.value: nodeValues["betweenness"][nodeID],
                     self.Keys.SNA_KATZ_CENTRALITY_DEPENDENCY_GRAPH.value: nodeValues["katz_centrality"][nodeID],
                     self.Keys.SNA_PAGERANK_DEPENDENCY_GRAPH.value: nodeValues["pagerank"][nodeID],
-                    self.Keys.SNA_EIGENVECTOR_CENTRALITY_DEPENDENCY_GRAPH.value: nodeValues["eigenvector_centrality"][nodeID],
+                    #for json dump without science counting, eigenvector_centrality would be multipiped 10^12
+                    self.Keys.SNA_EIGENVECTOR_CENTRALITY_DEPENDENCY_GRAPH.value: nodeValues["eigenvector_centrality"][nodeID]* 1e12,
                     self.Keys.SNA_AVERAGE_NEIGHBOR_DEGREE_DEPENDENCY_GRAPH.value: nodeValues["average_neighbor_degree"][nodeID],
                     self.Keys.SNA_CLUSTERING_COEFFICIENT_DEPENDENCY_GRAPH.value: nodeValues["clustering_coefficient"][nodeID],
                     self.Keys.SNA_SQUARE_CLUSTERING_DEPENDENCY_GRAPH.value: nodeValues["square_clustering"][nodeID],
@@ -154,9 +159,9 @@ class SocialNetworkMetric(GraphMetric):
                     self.local_data[node_with_unique_result_name].update(data)
                 else:
                     self.local_data[node_with_unique_result_name] = data
-    def task(self,q,mlMetric:LocalMetrics,m,nodesIDs):
+    def task(self,q,mlMetric:LocalMetrics,m):
         start_time = datetime.now()
-        q.put((m,mlMetric.calMetric(m,nodesIDs),))
+        q.put((m,mlMetric.calMetric(m),))
         dur_time = format_timedelta(datetime.now()-start_time, '%H:%M:%S + %s ms')
         LOGGER.info_done(f"calculate {m} finished in time: {dur_time}")
 if __name__ == '__main__':

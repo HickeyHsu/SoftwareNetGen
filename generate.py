@@ -65,6 +65,8 @@ DEFAULT_CONFIG={
         "number_of_methods",
         "source_lines_of_code",
         "dependency_graph",#(or dependency_graph/inheritance_graph/complete_graph)
+        "inheritance_graph",
+        "complete_graph",
         "louvain_modularity",
         "fan_in_out",
         "tfidf"
@@ -180,14 +182,15 @@ class GraphGenerator(Analyzer):
         analysis=self.start_scanning(analysis,cal_metric=False)
         if self.file_inheritance: analysis.merge_file_inheritance()
         if analysis.contains_code_metrics:
-                self._calculate_code_metric_results(analysis)
+            self._calculate_code_metric_results(analysis)
         if analysis.contains_graph_metrics:
             analysis.calculate_graph_representations()
             self._calculate_graph_metric_results(analysis)
             analysis.add_local_metric_results_to_graphs()
-        local_metric_df=local_metrics_to_df(analysis.get_local_metric_results())        
         if output_directory:
             analysis.export()
+        local_metric_df=local_metrics_to_df(analysis.get_local_metric_results())        
+        
         analysis.stop_timer()
         analysis.statistics.add(key=Statistics.Key.ANALYSIS_RUNTIME, value=analysis.duration())
         LOGGER.info_done(f'untime of analysis: {analysis.analysis_runtime}')
@@ -503,5 +506,6 @@ if __name__ == '__main__':
     print(sys.argv)
     argv=sys.argv
     graphGenerator.main(argv)
+    
     
     
