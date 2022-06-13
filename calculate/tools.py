@@ -29,8 +29,10 @@ def local_metrics_to_df(local_metric_results: Dict[str, Dict[str, Any]])->pd.Dat
 def max_min_dict_values(orig_dict:dict):
     df=pd.DataFrame.from_dict(orig_dict,orient="index",columns=['ori'])
     df['normalized']=(df['ori']-df['ori'].min())/(df['ori'].max()-df['ori'].min())
+    df=df.round({"normalized":5})
     res=df['normalized'].to_dict()
     return res
 if __name__ == '__main__':
-    page_score = {'andrew.lewis': 0.672, 'jack.redmond': 0.437,'geoff.storey': 0.276}
-    max_min_dict_values(page_score)
+    page_score = {'andrew.lewis': 0.6727777777777777777, 'jack.redmond': 0.4377777777777777777,'geoff.storey': 0.2767777777777777777}
+    res=max_min_dict_values(page_score)
+    print(res)

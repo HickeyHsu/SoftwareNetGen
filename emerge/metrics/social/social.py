@@ -98,8 +98,8 @@ class SocialNetworkMetric(GraphMetric):
             nodesIDs=digraph.nodes()
             # 多进程
             cpu=cpu_count()
-            if cpu<16:
-                LOGGER.info(f"本机使用{cpu}核CPU，核数小于16,不启用多进程提取SNA指标")
+            if cpu<8:
+                LOGGER.info(f"本机使用{cpu}核CPU，核数小于8,不启用多进程提取SNA指标")
                 for m in self.__metrics:
                     self.result[m]=mlMetric.calMetric(m,nodesIDs)
             else:

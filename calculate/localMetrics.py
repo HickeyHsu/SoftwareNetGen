@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import traceback
 import networkx as nx
 from networkx.algorithms.traversal import depth_first_search as dfs
 class LocalMetrics:
@@ -598,6 +599,7 @@ class LocalMetrics:
                 result=self.__function[metric](ids)
             except:
                 print(metric,'is wrong')
+                print(traceback.format_exc())
                 return None
         else:
             return  None
