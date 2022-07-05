@@ -278,7 +278,8 @@ class GraphGenerator(Analyzer):
         self._create_filesystem_graph(analysis)
         if (ConfigKeyAnalysis.ENTITY_SCAN.name.lower() in analysis.scan_types) or \
             (ConfigKeyAnalysis.FILE_SCAN.name.lower() in analysis.scan_types):
-            self._create_file_results(analysis)
+            # self._create_file_results(analysis)
+            self._create_file_results_mp(analysis)
             self._create_entity_results(analysis)
         LOGGER.info_done('scanning complete')
         if cal_metric:

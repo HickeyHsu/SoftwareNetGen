@@ -5,11 +5,11 @@ Defines 'Analyzer' which brings together the current configuration, analyses, pa
 # Authors: Grzegorz Lato <grzegorz.lato@gmail.com>
 # License: MIT
 
-import os
+import os,traceback
 import logging
 from typing import List
 from pathlib import Path
-
+from multiprocessing import Pool,Manager,cpu_count
 from datetime import datetime
 import coloredlogs
 
@@ -143,6 +143,60 @@ class Analyzer:
 
         analysis.statistics.add(key=Statistics.Key.EXTRACTED_FILE_RESULTS, value=analysis.number_of_file_results)
         analysis.statistics.add(key=Statistics.Key.FILE_RESULTS_CREATION_RUNTIME, value=file_result_creation_stops - file_result_creation_starts)
+    def _create_file_results_mp(self, analysis: Analysis):
+        cpu=cpu_count()
+        if cpu<8:
+            self._create_file_results(analysis)
+            return
+        pool = Pool(processes=cpu-2)
+        q=Manager().Queue()
+        jobs=[] #线程储存
+        
+
+        LOGGER.info_start(f'starting file result creation in {analysis.analysis_name}------mutiprocessing')
+        file_result_creation_starts = datetime.now()
+
+        filesystem_graph = analysis.graph_representations[GraphType.FILESYSTEM_GRAPH.name.lower()]
+
+        project_node: FileSystemNode
+        for _, filesystem_node in filesystem_graph.filesystem_nodes.items():
+            project_node = filesystem_node
+            try:
+                job=pool.apply_async(func=self._create_file_results_task,
+                    args=(q,project_node,analysis,))
+                jobs.append(job)
+            except:
+                LOGGER.error(traceback.format_exc()) 
+                continue
+        pool.close()
+        pool.join()
+        mpResults = [q.get() for j in jobs]
+        for r in mpResults:
+            analysis.add_results(r)
+        parser: AbstractParser
+        for parser_name, parser in self._parsers.items():
+            if bool(parser.results):
+                parser.after_generated_file_results(analysis)
+
+        file_result_creation_stops = datetime.now()
+
+        analysis.statistics.add(key=Statistics.Key.EXTRACTED_FILE_RESULTS, value=analysis.number_of_file_results)
+        analysis.statistics.add(key=Statistics.Key.FILE_RESULTS_CREATION_RUNTIME, value=file_result_creation_stops - file_result_creation_starts)
+    def _create_file_results_task(self,q,project_node: FileSystemNode,analysis: Analysis):
+        if project_node.type == FileSystemNodeType.FILE:
+            file_extension = Path(project_node.absolute_name).suffix
+            file_name = Path(project_node.absolute_name).name
+
+            parser_name = FileScanMapper.choose_parser(file_extension, analysis.only_permit_languages)
+
+            if parser_name in self._parsers:
+                parser: AbstractParser = self._parsers[parser_name]
+                file_content = project_node.content
+
+                parser.generate_file_result_from_analysis(analysis, file_name=file_name, full_file_path=project_node.absolute_name, file_content=file_content)
+                results = parser.results
+                q.put(results)
+                # analysis.add_results(results)
 
     def _create_entity_results(self, analysis: Analysis):
         """Creates entity results from the file results of a given analysis for every active parser.
