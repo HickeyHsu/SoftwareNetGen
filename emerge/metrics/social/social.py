@@ -101,7 +101,7 @@ class SocialNetworkMetric(GraphMetric):
             if cpu<8:
                 LOGGER.info(f"本机使用{cpu}核CPU，核数小于8,不启用多进程提取SNA指标")
                 for m in self.__metrics:
-                    self.result[m]=mlMetric.calMetric(m,nodesIDs)
+                    self.result[m]=mlMetric.calMetric(m)
             else:
                 LOGGER.info(f"本机使用{cpu}核CPU，启用{cpu-2}进程提取SNA指标")
                 pool = Pool(processes=cpu_count()-2)
@@ -136,7 +136,6 @@ class SocialNetworkMetric(GraphMetric):
                     self.Keys.SNA_BETWEENNESS_DEPENDENCY_GRAPH.value: nodeValues["betweenness"][nodeID],
                     self.Keys.SNA_KATZ_CENTRALITY_DEPENDENCY_GRAPH.value: nodeValues["katz_centrality"][nodeID],
                     self.Keys.SNA_PAGERANK_DEPENDENCY_GRAPH.value: nodeValues["pagerank"][nodeID],
-                    #for json dump without science counting, eigenvector_centrality would be multipiped 10^12
                     self.Keys.SNA_EIGENVECTOR_CENTRALITY_DEPENDENCY_GRAPH.value: nodeValues["eigenvector_centrality"][nodeID]* 1e12,
                     self.Keys.SNA_AVERAGE_NEIGHBOR_DEGREE_DEPENDENCY_GRAPH.value: nodeValues["average_neighbor_degree"][nodeID],
                     self.Keys.SNA_CLUSTERING_COEFFICIENT_DEPENDENCY_GRAPH.value: nodeValues["clustering_coefficient"][nodeID],
